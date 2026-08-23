@@ -141,6 +141,13 @@ STRINGS = {
               "votre ecran fonctionnent.",
         "en": "In fullscreen, only modes your screen actually provides will "
               "work."},
+    "res_note_no_xrandr": {
+        "fr": "xrandr n'a renvoye aucune information d'affichage : "
+              "impossible de valider un mode plein ecran, qui risquerait de "
+              "faire echouer le demarrage. Seul le mode fenetre est propose.",
+        "en": "xrandr returned no display information: a fullscreen mode "
+              "cannot be validated and could make startup fail. Only "
+              "windowed mode is offered."},
     "res_limit": {
         "fr": "Le moteur ne supporte pas plus de %d pixels de hauteur : "
               "au-dela, le jeu se ferme au chargement de la mission. La "
@@ -518,10 +525,14 @@ class IniFile:
         return bool(m) and m.group(2).lower() == key.lower()
 
     def get(self, key, default=""):
+        """Returns the last occurrence: duplicate keys are read top to
+        bottom by the game, so the last one is the one that takes effect.
+        """
+        value = default
         for line in self.lines:
             if self._is_key(line, key):
-                return self.LINE_RE.match(line).group(4).strip().strip('"')
-        return default
+                value = self.LINE_RE.match(line).group(4).strip().strip('"')
+        return value
 
     def remove(self, key):
         self.lines = [ln for ln in self.lines if not self._is_key(ln, key)]
@@ -585,6 +596,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         xrandr_result = run_xrandr([])
         xrandr_text = xrandr_result.stdout if xrandr_result else ""
         self.all_sizes = xrandr_sizes(xrandr_text)
+        self.xrandr_available = bool(self.all_sizes)
         self.fullscreen_modes = game_modes(self.all_sizes)
         self.window_sizes = self.build_window_sizes()
         self.output = primary_output(xrandr_text)
@@ -757,6 +769,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         box.append(self.section_label(self.tr("sec_mission_view")))
 
         self.windowed_check = Gtk.CheckButton(label=self.tr("windowed"))
+        self.windowed_check.set_sensitive(self.xrandr_available)
         self.windowed_check.connect("toggled",
                                     lambda *_: self.on_mode_switch())
         box.append(self.windowed_check)
@@ -980,7 +993,9 @@ class LauncherWindow(Gtk.ApplicationWindow):
         self.config = ConfigIni(self.config_path())
         self.rules = RulesIni(self.rules_path())
 
-        self.windowed_check.set_active(self.settings.get("windowed", False))
+        self.windowed_check.set_active(
+            True if not self.xrandr_available
+            else self.settings.get("windowed", False))
         self.aspect_check.set_active(
             self.scaling_available and self.settings.get("keep_aspect", False))
 
@@ -1042,9 +1057,12 @@ class LauncherWindow(Gtk.ApplicationWindow):
             return
         self.update_preview()
 
-        self.res_note.set_text(
-            self.tr("res_note_windowed") if self.windowed_check.get_active()
-            else self.tr("res_note_fullscreen"))
+        if not self.xrandr_available:
+            self.res_note.set_text(self.tr("res_note_no_xrandr"))
+        elif self.windowed_check.get_active():
+            self.res_note.set_text(self.tr("res_note_windowed"))
+        else:
+            self.res_note.set_text(self.tr("res_note_fullscreen"))
 
         if not self.scaling_available:
             self.aspect_note.set_text(self.tr("aspect_unavailable"))
@@ -1155,8 +1173,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
 
         try:
             self.config.save()
-            if os.path.exists(self.rules_path()):
-                self.rules.save()
+            self.rules.save()
             self.save_settings()
             self.set_status(self.tr("saved"))
         except Exception as exc:

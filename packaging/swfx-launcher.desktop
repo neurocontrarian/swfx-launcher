@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=SyndWarsFX Launcher
+Name[fr]=Lanceur SyndWarsFX
+Comment=Configure and launch SyndWarsFX
+Comment[fr]=Configurer et lancer SyndWarsFX
+Exec=swfx-launcher
+Icon=applications-games
+Categories=Game;
+Keywords=syndicate;wars;syndwarsfx;launcher;
+Terminal=false
+StartupNotify=true

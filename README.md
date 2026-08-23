@@ -71,6 +71,24 @@ sudo dnf install python3-gobject gtk4 xrandr
 
 ### Installation
 
+#### Paquet Debian / Ubuntu / Mint
+
+```bash
+git clone https://github.com/neurocontrarian/swfx-launcher.git
+cd swfx-launcher
+./build-deb.sh
+sudo apt install ./dist/swfx-launcher_0.1.0_all.deb
+```
+
+`apt` installe les dépendances tout seul et ajoute l'entrée dans le menu des
+applications. Le lanceur se démarre ensuite par la commande `swfx-launcher`
+ou depuis le menu. Pour le retirer : `sudo apt remove swfx-launcher`.
+
+La construction du paquet ne demande que `dpkg-deb` et `gzip`, présents
+partout sur ces distributions.
+
+#### Depuis les sources
+
 ```bash
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
@@ -83,7 +101,8 @@ Si votre installation est ailleurs, utilisez le bouton **Dossier du jeu…**
 dans la barre de titre. Le chemin est mémorisé dans
 `~/.config/swfx-launcher.json`.
 
-Pour un raccourci dans le menu des applications, créez
+Pour un raccourci dans le menu des applications — inutile si vous avez
+installé le paquet — créez
 `~/.local/share/applications/swfx-launcher.desktop` :
 
 ```ini
@@ -289,6 +308,24 @@ sudo dnf install python3-gobject gtk4 xrandr
 
 ### Installation
 
+#### Debian / Ubuntu / Mint package
+
+```bash
+git clone https://github.com/neurocontrarian/swfx-launcher.git
+cd swfx-launcher
+./build-deb.sh
+sudo apt install ./dist/swfx-launcher_0.1.0_all.deb
+```
+
+`apt` pulls the dependencies in and adds the application menu entry. The
+launcher then starts with the `swfx-launcher` command or from the menu. To
+remove it: `sudo apt remove swfx-launcher`.
+
+Building the package needs only `dpkg-deb` and `gzip`, both present
+everywhere on these distributions.
+
+#### From source
+
 ```bash
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
@@ -300,8 +337,8 @@ On first run the launcher looks for the game in `~/games/syndwarsfx`. Use the
 **Game folder…** button in the title bar if yours lives elsewhere. The path is
 remembered in `~/.config/swfx-launcher.json`.
 
-To add a shortcut to the application menu, create
-`~/.local/share/applications/swfx-launcher.desktop`:
+To add a shortcut to the application menu — not needed if you installed the
+package — create `~/.local/share/applications/swfx-launcher.desktop`:
 
 ```ini
 [Desktop Entry]

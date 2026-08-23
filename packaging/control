@@ -1,0 +1,19 @@
+Package: swfx-launcher
+Version: 0.1.0
+Section: games
+Priority: optional
+Architecture: all
+Depends: python3, python3-gi, gir1.2-gtk-4.0, x11-xserver-utils
+Maintainer: neurocontrarian <neurocontrarian@gmail.com>
+Homepage: https://github.com/neurocontrarian/swfx-launcher
+Description: GTK4 launcher for SyndWarsFX
+ Configures SyndWarsFX through config.ini and conf/rules.ini, exposing only
+ the settings that actually work and refusing the combinations that fail.
+ .
+ The resolution list is built from xrandr, so a mode the screen does not
+ provide cannot be picked. Aspect ratio is preserved on widescreen displays
+ and restored when the game exits, videos can be enlarged or shown in a
+ dedicated 4:3 mode, and both configuration files are backed up before every
+ write.
+ .
+ The interface is available in French and English.

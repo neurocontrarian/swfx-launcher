@@ -375,6 +375,10 @@ def format_mode(width, height):
     return "%dx%dx%d" % (width, height, BPP)
 
 
+def size_str(width, height):
+    return "%dx%d" % (width, height)
+
+
 def aspect_label(w, h):
     if h == 0:
         return "?"
@@ -390,25 +394,25 @@ def run_xrandr(args, capture=True):
         return None
 
 
-def xrandr_sizes():
-    result = run_xrandr([])
-    if result is None:
-        return []
+def xrandr_sizes(output_text=None):
+    if output_text is None:
+        result = run_xrandr([])
+        output_text = result.stdout if result else ""
     found = set()
-    for line in result.stdout.splitlines():
+    for line in output_text.splitlines():
         m = XRANDR_MODE_RE.match(line)
         if m:
             found.add((int(m.group(1)), int(m.group(2))))
     return sorted(found, key=lambda wh: (-wh[0] * wh[1], -wh[0]))
 
 
-def primary_output():
+def primary_output(output_text=None):
     """Name of the connected video output, for xrandr --output."""
-    result = run_xrandr([])
-    if result is None:
-        return None
+    if output_text is None:
+        result = run_xrandr([])
+        output_text = result.stdout if result else ""
     fallback = None
-    for line in result.stdout.splitlines():
+    for line in output_text.splitlines():
         m = XRANDR_OUTPUT_RE.match(line)
         if not m:
             continue
@@ -455,7 +459,7 @@ def game_modes(all_sizes):
               if h <= MAX_GAME_HEIGHT and w <= MAX_GAME_WIDTH]
     if not usable:
         return list(FALLBACK_MODES)
-    return ["%dx%d" % (w, h) for w, h in usable]
+    return [size_str(w, h) for w, h in usable]
 
 
 def four_three_sizes(all_sizes, max_height):
@@ -578,14 +582,13 @@ class LauncherWindow(Gtk.ApplicationWindow):
         self.lang = self.settings.get("lang", "fr")
         self.game_dir = self.settings.get("game_dir", DEFAULT_GAME_DIR)
 
-        self.all_sizes = xrandr_sizes()
+        xrandr_result = run_xrandr([])
+        xrandr_text = xrandr_result.stdout if xrandr_result else ""
+        self.all_sizes = xrandr_sizes(xrandr_text)
         self.fullscreen_modes = game_modes(self.all_sizes)
         self.window_sizes = self.build_window_sizes()
-        self.output = primary_output()
+        self.output = primary_output(xrandr_text)
         self.scaling_available = scaling_mode_supported()
-
-        self.config = ConfigIni(self.config_path())
-        self.rules = RulesIni(self.rules_path())
 
         self.root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.set_child(self.root)
@@ -617,7 +620,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         geo = detect_monitor()
         if geo is not None:
             width = min(geo[0], MAX_GAME_WIDTH)
-            candidate = "%dx%d" % (width, MAX_GAME_HEIGHT)
+            candidate = size_str(width, MAX_GAME_HEIGHT)
             if candidate not in sizes:
                 sizes.insert(0, candidate)
         return sizes
@@ -722,17 +725,34 @@ class LauncherWindow(Gtk.ApplicationWindow):
             lbl.set_margin_start(indent)
         return lbl
 
+    def small_note(self, key, indent=0, args=None):
+        text = self.tr(key)
+        if args is not None:
+            text = text % args
+        return self.small_label(GLib.markup_escape_text(text), indent)
+
     def section_label(self, text):
         lbl = Gtk.Label(xalign=0)
         lbl.set_markup("<b>%s</b>" % GLib.markup_escape_text(text))
         return lbl
 
-    def build_display_tab(self):
+    def dim_label(self, margin_start=0, selectable=False):
+        lbl = Gtk.Label(xalign=0, wrap=True, selectable=selectable)
+        lbl.add_css_class("dim-label")
+        if margin_start:
+            lbl.set_margin_start(margin_start)
+        return lbl
+
+    def scrolled_box(self, spacing):
         scroller = Gtk.ScrolledWindow()
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=spacing)
         for side in ("top", "bottom", "start", "end"):
             getattr(box, "set_margin_" + side)(16)
         scroller.set_child(box)
+        return scroller, box
+
+    def build_display_tab(self):
+        scroller, box = self.scrolled_box(14)
 
         box.append(self.section_label(self.tr("sec_mission_view")))
 
@@ -748,13 +768,12 @@ class LauncherWindow(Gtk.ApplicationWindow):
         row.append(self.res_drop)
         box.append(row)
 
-        self.res_note = Gtk.Label(xalign=0, wrap=True)
-        self.res_note.add_css_class("dim-label")
+        self.res_note = self.dim_label()
         box.append(self.res_note)
 
-        box.append(self.small_label(GLib.markup_escape_text(
-            self.tr("res_limit") % (MAX_GAME_HEIGHT, MAX_GAME_WIDTH,
-                                    MAX_GAME_HEIGHT))))
+        box.append(self.small_note("res_limit",
+                                   args=(MAX_GAME_HEIGHT, MAX_GAME_WIDTH,
+                                        MAX_GAME_HEIGHT)))
 
         box.append(Gtk.Separator())
         box.append(self.section_label(self.tr("sec_aspect")))
@@ -764,9 +783,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         self.aspect_check.connect("toggled", lambda *_: self.on_changed())
         box.append(self.aspect_check)
 
-        self.aspect_note = Gtk.Label(xalign=0, wrap=True)
-        self.aspect_note.add_css_class("dim-label")
-        self.aspect_note.set_margin_start(28)
+        self.aspect_note = self.dim_label(28)
         box.append(self.aspect_note)
 
         box.append(Gtk.Separator())
@@ -781,30 +798,23 @@ class LauncherWindow(Gtk.ApplicationWindow):
                 btn.set_group(first)
             btn.connect("toggled", lambda *_: self.on_changed())
             box.append(btn)
-            box.append(self.small_label(
-                GLib.markup_escape_text(self.tr("video_%s_desc" % key)), 28))
+            box.append(self.small_note("video_%s_desc" % key, 28))
             self.video_buttons[key] = btn
 
-        self.video_note = Gtk.Label(xalign=0, wrap=True)
-        self.video_note.add_css_class("dim-label")
+        self.video_note = self.dim_label()
         box.append(self.video_note)
 
         box.append(Gtk.Separator())
         box.append(self.small_label(self.tr("menu_info")))
 
-        self.monitor_label = Gtk.Label(xalign=0, wrap=True)
-        self.monitor_label.add_css_class("dim-label")
+        self.monitor_label = self.dim_label()
         box.append(self.monitor_label)
 
         self.update_monitor_info()
         return scroller
 
     def build_game_tab(self):
-        scroller = Gtk.ScrolledWindow()
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
-        for side in ("top", "bottom", "start", "end"):
-            getattr(box, "set_margin_" + side)(16)
-        scroller.set_child(box)
+        scroller, box = self.scrolled_box(16)
 
         box.append(self.section_label(self.tr("sec_view_range")))
 
@@ -832,28 +842,21 @@ class LauncherWindow(Gtk.ApplicationWindow):
         ends.append(right)
         box.append(ends)
 
-        self.zoom_note = Gtk.Label(xalign=0, wrap=True)
-        self.zoom_note.add_css_class("dim-label")
+        self.zoom_note = self.dim_label()
         box.append(self.zoom_note)
 
-        box.append(self.small_label(
-            GLib.markup_escape_text(self.tr("zoom_warning"))))
+        box.append(self.small_note("zoom_warning"))
 
         box.append(Gtk.Separator())
 
         self.target_health = Gtk.CheckButton(label=self.tr("target_health"))
         box.append(self.target_health)
-        box.append(self.small_label(
-            GLib.markup_escape_text(self.tr("target_health_desc")), 28))
+        box.append(self.small_note("target_health_desc", 28))
 
         return scroller
 
     def build_launch_tab(self):
-        scroller = Gtk.ScrolledWindow()
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
-        for side in ("top", "bottom", "start", "end"):
-            getattr(box, "set_margin_" + side)(16)
-        scroller.set_child(box)
+        scroller, box = self.scrolled_box(14)
 
         self.skip_intro = Gtk.CheckButton(label=self.tr("skip_intro"))
         self.skip_intro.set_active(self.settings.get("skip_intro", False))
@@ -878,8 +881,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         mrow.append(self.mission_spin)
         box.append(mrow)
 
-        box.append(self.small_label(
-            GLib.markup_escape_text(self.tr("mission_note"))))
+        box.append(self.small_note("mission_note"))
 
         box.append(Gtk.Separator())
 
@@ -901,8 +903,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
             texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
             texts.append(Gtk.Label(
                 label="%s  (%s)" % (self.tr("flag_" + name), flag), xalign=0))
-            texts.append(self.small_label(GLib.markup_escape_text(
-                self.tr("flag_%s_desc" % name))))
+            texts.append(self.small_note("flag_%s_desc" % name))
             texts.set_hexpand(True)
             sw_row.append(texts)
 
@@ -912,8 +913,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         expander.set_child(adv)
         box.append(expander)
 
-        self.cmd_preview = Gtk.Label(xalign=0, wrap=True, selectable=True)
-        self.cmd_preview.add_css_class("dim-label")
+        self.cmd_preview = self.dim_label(selectable=True)
         box.append(self.cmd_preview)
 
         return scroller
@@ -970,7 +970,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         if self._loading:
             return
         size = self.selected_size()
-        self.refill_resolutions("%dx%d" % size if size else "")
+        self.refill_resolutions(size_str(*size) if size else "")
         self.on_changed()
 
     # -- loading -----------------------------------------------------------
@@ -985,7 +985,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
             self.scaling_available and self.settings.get("keep_aspect", False))
 
         size = size_of(self.config.get("ResGameHi", ""))
-        self.refill_resolutions("%dx%d" % size if size else "1280x960")
+        self.refill_resolutions(size_str(*size) if size else "1280x960")
 
         video_size = size_of(self.config.get("ResFMVidLo", ""))
         mode = "fixed43" if (video_size and video_size != (320, 200)) \
@@ -1061,10 +1061,12 @@ class LauncherWindow(Gtk.ApplicationWindow):
         else:
             self.video_note.set_text("")
 
+    def zoom_step(self):
+        step = max(1, min(10, int(round(self.zoom_scale.get_value()))))
+        return step, ZOOM_SCALE[step]
+
     def on_zoom_moved(self):
-        step = int(round(self.zoom_scale.get_value()))
-        step = max(1, min(10, step))
-        lo, hi = ZOOM_SCALE[step]
+        step, (lo, hi) = self.zoom_step()
         if step == 10:
             suffix = self.tr("zoom_closest")
         elif step == ZOOM_DEFAULT_STEP:
@@ -1124,7 +1126,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         if width > MAX_GAME_WIDTH:
             self.set_status(self.tr("too_wide") % (width, MAX_GAME_WIDTH))
             return
-        if not windowed and ("%dx%d" % (width, height)) \
+        if not windowed and size_str(width, height) \
                 not in self.fullscreen_modes:
             self.set_status(self.tr("not_a_mode") % (width, height))
             return
@@ -1145,9 +1147,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
             self.config.set("ResFMVVidHi", FMV_HI_DEFAULT)
             self.config.set("ResFMVidLo", FMV_LO_DEFAULT)
 
-        step = int(round(self.zoom_scale.get_value()))
-        step = max(1, min(10, step))
-        lo, hi = ZOOM_SCALE[step]
+        step, (lo, hi) = self.zoom_step()
         self.rules.set("ZoomMin", lo)
         self.rules.set("ZoomMax", hi)
         self.rules.set("ShowTargetHealth",

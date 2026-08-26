@@ -81,6 +81,7 @@ BPP = 8
 
 SCALING_PROPERTY = "scaling mode"
 SCALING_ASPECT = "Full aspect"
+SCALING_STRETCH = "Full"
 
 FALLBACK_MODES = ["640x480", "800x600", "1024x768",
                   "1280x960", "1280x1024", "1920x1080"]
@@ -174,13 +175,14 @@ STRINGS = {
               "game starts, then restored to its previous state when the "
               "game exits."},
     "aspect_off": {
-        "fr": "En plein ecran, le jeu fait changer de mode votre carte "
-              "graphique. C'est ensuite le moniteur qui etale ce signal sur "
-              "toute la largeur, ce qui deforme le texte et les menus sur un "
-              "ecran panoramique.",
-        "en": "In fullscreen the game makes your graphics card switch mode. "
-              "The monitor then spreads that signal across the full width, "
-              "which distorts text and menus on a widescreen display."},
+        "fr": "La sortie video sera reglee pour etaler l'image sur toute la "
+              "largeur avant le lancement, puis remise dans son etat "
+              "precedent a la fermeture du jeu. Sur un ecran panoramique, "
+              "cela deforme le texte et les menus.",
+        "en": "The video output will be set to stretch the image across the "
+              "full width before the game starts, then restored to its "
+              "previous state when the game exits. On a widescreen display "
+              "this distorts text and menus."},
     "aspect_unavailable": {
         "fr": "Votre pilote graphique n'expose pas ce reglage : les "
               "proportions dependent alors du menu de votre moniteur.",
@@ -335,6 +337,9 @@ STRINGS = {
     "launched_aspect": {
         "fr": "Proportions preservees ; jeu lance.",
         "en": "Aspect ratio preserved; game started."},
+    "launched_stretch": {
+        "fr": "Image etiree sur toute la largeur ; jeu lance.",
+        "en": "Image stretched to the full width; game started."},
     "aspect_refused": {
         "fr": "Reglage des proportions refuse par le pilote ; jeu lance quand "
               "meme.",
@@ -437,11 +442,43 @@ def primary_output(output_text=None):
     return fallback
 
 
-def scaling_mode_supported():
+def scaling_modes(output):
+    """Returns the scaling mode values the driver accepts for this output, or
+    None when the property is not exposed. The values differ between drivers,
+    and a machine can have one output that exposes the property and another
+    that does not, so this has to be asked per output rather than globally."""
     result = run_xrandr(["--prop"])
-    if result is None:
+    if result is None or not output:
+        return None
+    in_output = False
+    after_property = False
+    for line in result.stdout.splitlines():
+        m = XRANDR_OUTPUT_RE.match(line)
+        if m:
+            in_output = (m.group(1) == output)
+            after_property = False
+            continue
+        if not in_output:
+            continue
+        # The list of accepted values is on the line right below the property.
+        if after_property:
+            stripped = line.strip()
+            if stripped.lower().startswith("supported:"):
+                values = stripped.split(":", 1)[1]
+                return [v.strip() for v in values.split(",") if v.strip()]
+            after_property = False
+        if SCALING_PROPERTY in line.lower():
+            after_property = True
+    return None
+
+
+def scaling_mode_supported(output):
+    """The checkbox is only meaningful when both settings it switches between
+    are available; otherwise one of its two states could not be honoured."""
+    values = scaling_modes(output)
+    if not values:
         return False
-    return SCALING_PROPERTY in result.stdout and SCALING_ASPECT in result.stdout
+    return SCALING_ASPECT in values and SCALING_STRETCH in values
 
 
 def current_scaling_mode(output):
@@ -607,7 +644,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         self.fullscreen_modes = game_modes(self.all_sizes)
         self.window_sizes = self.build_window_sizes()
         self.output = primary_output(xrandr_text)
-        self.scaling_available = scaling_mode_supported()
+        self.scaling_available = scaling_mode_supported(self.output)
 
         self.root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.set_child(self.root)
@@ -1213,10 +1250,20 @@ class LauncherWindow(Gtk.ApplicationWindow):
             return
 
         previous_scaling = None
-        if self.aspect_check.get_active() and self.scaling_available:
+        if self.scaling_available:
+            # Both states have to be set, not just the one that adds bars: the
+            # output may already be on either value, in which case leaving it
+            # alone would make the checkbox look like it does nothing.
+            keep = self.aspect_check.get_active()
+            wanted = SCALING_ASPECT if keep else SCALING_STRETCH
             previous_scaling = current_scaling_mode(self.output)
-            if set_scaling_mode(self.output, SCALING_ASPECT):
-                self.set_status(self.tr("launched_aspect"))
+            if previous_scaling == wanted:
+                previous_scaling = None  # nothing to put back afterwards
+                self.set_status(self.tr("launched_aspect" if keep
+                                        else "launched_stretch"))
+            elif set_scaling_mode(self.output, wanted):
+                self.set_status(self.tr("launched_aspect" if keep
+                                        else "launched_stretch"))
             else:
                 previous_scaling = None
                 self.set_status(self.tr("aspect_refused"))

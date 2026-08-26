@@ -5,6 +5,10 @@ Un lanceur graphique GTK4 pour **SyndWarsFX**, le portage libre de
 A GTK4 launcher for **SyndWarsFX**, the open source port of Bullfrog's
 *Syndicate Wars* (1996).
 
+**[Télécharger le paquet .deb](https://github.com/neurocontrarian/swfx-launcher/releases/latest)** — Debian, Ubuntu, Linux Mint
+
+**[Download the .deb package](https://github.com/neurocontrarian/swfx-launcher/releases/latest)** — Debian, Ubuntu, Linux Mint
+
 **→ [English version](#english)**
 
 ---
@@ -55,39 +59,68 @@ l'interface.
 ### Prérequis
 
 - Linux avec X11 (le réglage des proportions passe par `xrandr`)
-- Python 3.8 ou plus récent
-- GTK 4 et ses liaisons Python
 - SyndWarsFX déjà installé et fonctionnel
 
+Le paquet Debian se charge du reste — Python 3, GTK 4 et `xrandr` sont
+installés automatiquement avec lui.
+
+### Installation
+
+#### Debian, Ubuntu, Linux Mint
+
+1. Téléchargez `swfx-launcher_0.1.0_all.deb` depuis la
+   **[page des versions](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
+2. Double-cliquez sur le fichier téléchargé : l'installateur de paquets
+   s'ouvre, il suffit de cliquer sur **Installer**.
+
+Il n'y a rien d'autre à préparer. L'entrée **SyndWarsFX Launcher** apparaît
+ensuite dans le menu des applications, section Jeux.
+
+En terminal, si vous préférez :
+
 ```bash
-sudo apt install python3-gi gir1.2-gtk-4.0 x11-xserver-utils
+sudo apt install ~/Téléchargements/swfx-launcher_0.1.0_all.deb
 ```
 
-Sur Fedora :
+Un message commençant par `N: Download is performed unsandboxed as root…`
+peut s'afficher au passage. Ce n'est pas une erreur — le `N:` signale une
+simple remarque — et l'installation aboutit normalement.
+
+Pour désinstaller : `sudo apt remove swfx-launcher`. Vos réglages sont
+conservés.
+
+#### Premier démarrage
+
+Ouvrez **SyndWarsFX Launcher** depuis le menu des applications, ou tapez
+`swfx-launcher` dans un terminal.
+
+Le lanceur cherche le jeu dans `~/games/syndwarsfx`. Si votre installation se
+trouve ailleurs, cliquez sur **Dossier du jeu…** dans la barre de titre et
+désignez-la. Le chemin est mémorisé dans `~/.config/swfx-launcher.json`, avec
+le reste de vos réglages ; la question ne vous sera pas reposée.
+
+Si l'entrée de menu tarde à apparaître, fermez puis rouvrez votre session :
+la plupart des bureaux ne relisent la liste des applications qu'à la
+connexion.
+
+#### Autres distributions
+
+Le lanceur est un unique fichier Python, exécutable tel quel. Installez
+d'abord GTK 4, ses liaisons Python et `xrandr`.
+
+Fedora :
 
 ```bash
 sudo dnf install python3-gobject gtk4 xrandr
 ```
 
-### Installation
-
-#### Paquet Debian / Ubuntu / Mint
+Debian et dérivées, sans passer par le paquet :
 
 ```bash
-git clone https://github.com/neurocontrarian/swfx-launcher.git
-cd swfx-launcher
-./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.1.0_all.deb
+sudo apt install python3-gi gir1.2-gtk-4.0 x11-xserver-utils
 ```
 
-`apt` installe les dépendances tout seul et ajoute l'entrée dans le menu des
-applications. Le lanceur se démarre ensuite par la commande `swfx-launcher`
-ou depuis le menu. Pour le retirer : `sudo apt remove swfx-launcher`.
-
-La construction du paquet ne demande que `dpkg-deb` et `gzip`, présents
-partout sur ces distributions.
-
-#### Depuis les sources
+Puis :
 
 ```bash
 git clone https://github.com/neurocontrarian/swfx-launcher.git
@@ -96,10 +129,8 @@ chmod +x swfx-launcher.py
 python3 swfx-launcher.py
 ```
 
-Au premier démarrage, le lanceur cherche le jeu dans `~/games/syndwarsfx`.
-Si votre installation est ailleurs, utilisez le bouton **Dossier du jeu…**
-dans la barre de titre. Le chemin est mémorisé dans
-`~/.config/swfx-launcher.json`.
+Python 3.8 ou plus récent est nécessaire. Le paragraphe **Premier
+démarrage** ci-dessus s'applique de la même façon.
 
 Pour un raccourci dans le menu des applications — inutile si vous avez
 installé le paquet — créez
@@ -114,6 +145,18 @@ Icon=/chemin/vers/syndwarsfx/syndwarsfx_icon.png
 Categories=Game;
 Terminal=false
 ```
+
+#### Construire le paquet vous-même
+
+```bash
+git clone https://github.com/neurocontrarian/swfx-launcher.git
+cd swfx-launcher
+./build-deb.sh
+sudo apt install ./dist/swfx-launcher_0.1.0_all.deb
+```
+
+La construction ne demande que `dpkg-deb` et `gzip`, présents partout sur
+ces distributions.
 
 ### Découvertes techniques
 
@@ -292,39 +335,66 @@ fail, and explains each choice inside the interface.
 ### Requirements
 
 - Linux with X11 (aspect handling relies on `xrandr`)
-- Python 3.8 or newer
-- GTK 4 with Python bindings
 - A working SyndWarsFX installation
 
+The Debian package takes care of the rest — Python 3, GTK 4 and `xrandr` are
+installed along with it.
+
+### Installation
+
+#### Debian, Ubuntu, Linux Mint
+
+1. Download `swfx-launcher_0.1.0_all.deb` from the
+   **[releases page](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
+2. Double-click the downloaded file: the package installer opens, and one
+   click on **Install** is all it takes.
+
+Nothing else needs preparing. The **SyndWarsFX Launcher** entry then shows up
+in the applications menu, under Games.
+
+From a terminal, if you prefer:
+
 ```bash
-sudo apt install python3-gi gir1.2-gtk-4.0 x11-xserver-utils
+sudo apt install ~/Downloads/swfx-launcher_0.1.0_all.deb
 ```
 
-On Fedora:
+A message starting with `N: Download is performed unsandboxed as root…` may
+appear along the way. It is not an error — the `N:` marks a note — and the
+installation completes normally.
+
+To uninstall: `sudo apt remove swfx-launcher`. Your settings are kept.
+
+#### First run
+
+Open **SyndWarsFX Launcher** from the applications menu, or type
+`swfx-launcher` in a terminal.
+
+The launcher looks for the game in `~/games/syndwarsfx`. If your installation
+lives elsewhere, click **Game folder…** in the title bar and point it there.
+The path is remembered in `~/.config/swfx-launcher.json` along with the rest
+of your settings; you will not be asked again.
+
+If the menu entry takes a while to appear, log out and back in: most desktops
+only reread the application list at login.
+
+#### Other distributions
+
+The launcher is a single Python file that runs as it is. Install GTK 4, its
+Python bindings and `xrandr` first.
+
+Fedora:
 
 ```bash
 sudo dnf install python3-gobject gtk4 xrandr
 ```
 
-### Installation
-
-#### Debian / Ubuntu / Mint package
+Debian and derivatives, without going through the package:
 
 ```bash
-git clone https://github.com/neurocontrarian/swfx-launcher.git
-cd swfx-launcher
-./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.1.0_all.deb
+sudo apt install python3-gi gir1.2-gtk-4.0 x11-xserver-utils
 ```
 
-`apt` pulls the dependencies in and adds the application menu entry. The
-launcher then starts with the `swfx-launcher` command or from the menu. To
-remove it: `sudo apt remove swfx-launcher`.
-
-Building the package needs only `dpkg-deb` and `gzip`, both present
-everywhere on these distributions.
-
-#### From source
+Then:
 
 ```bash
 git clone https://github.com/neurocontrarian/swfx-launcher.git
@@ -333,9 +403,8 @@ chmod +x swfx-launcher.py
 python3 swfx-launcher.py
 ```
 
-On first run the launcher looks for the game in `~/games/syndwarsfx`. Use the
-**Game folder…** button in the title bar if yours lives elsewhere. The path is
-remembered in `~/.config/swfx-launcher.json`.
+Python 3.8 or newer is required. The **First run** section above applies just
+the same.
 
 To add a shortcut to the application menu — not needed if you installed the
 package — create `~/.local/share/applications/swfx-launcher.desktop`:
@@ -349,6 +418,18 @@ Icon=/path/to/syndwarsfx/syndwarsfx_icon.png
 Categories=Game;
 Terminal=false
 ```
+
+#### Building the package yourself
+
+```bash
+git clone https://github.com/neurocontrarian/swfx-launcher.git
+cd swfx-launcher
+./build-deb.sh
+sudo apt install ./dist/swfx-launcher_0.1.0_all.deb
+```
+
+Building needs only `dpkg-deb` and `gzip`, both present everywhere on these
+distributions.
 
 ### Technical findings
 

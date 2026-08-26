@@ -68,7 +68,7 @@ installés automatiquement avec lui.
 
 #### Debian, Ubuntu, Linux Mint
 
-1. Téléchargez `swfx-launcher_0.1.0_all.deb` depuis la
+1. Téléchargez `swfx-launcher_0.2.0_all.deb` depuis la
    **[page des versions](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
 2. Double-cliquez sur le fichier téléchargé : l'installateur de paquets
    s'ouvre, il suffit de cliquer sur **Installer**.
@@ -79,7 +79,7 @@ ensuite dans le menu des applications, section Jeux.
 En terminal, si vous préférez :
 
 ```bash
-sudo apt install ~/Téléchargements/swfx-launcher_0.1.0_all.deb
+sudo apt install ~/Téléchargements/swfx-launcher_0.2.0_all.deb
 ```
 
 Un message commençant par `N: Download is performed unsandboxed as root…`
@@ -152,7 +152,7 @@ Terminal=false
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
 ./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.1.0_all.deb
+sudo apt install ./dist/swfx-launcher_0.2.0_all.deb
 ```
 
 La construction ne demande que `dpkg-deb` et `gzip`, présents partout sur
@@ -197,18 +197,51 @@ tenté dans `LbScreenSwap()`, qui appelle `LbI_SDL_BlitScaled()` avec deux
 une raison logique : les deux surfaces ont le même ratio, l'étirement se
 produit après, dans la chaîne d'affichage.
 
-#### 3. La limite de résolution porte sur la hauteur
+#### 3. La limite de résolution porte sur chaque dimension séparément
 
-Le wiki indique que rien ne fonctionne au-delà de 1080p. La mesure est plus
-précise : **c'est la hauteur qui compte, pas le nombre de pixels**.
+Le wiki indique que rien ne fonctionne au-delà de 1080p. C'est inexact :
+**2560×1440 charge une mission sans incident**. Ce n'est pas non plus la
+hauteur seule qui décide, ni le nombre total de pixels.
+
+Les deux plafonds sont ceux de `bflibrary/include/bfscreen.h` :
+
+```c
+#define MAX_SUPPORTED_SCREEN_WIDTH  2560
+#define MAX_SUPPORTED_SCREEN_HEIGHT 1440
+```
+
+Ils ne servent nulle part de contrôle. Ce sont des **dimensions de tableaux
+fixes**, répartis dans le moteur, et indexés séparément par l'une ou l'autre
+dimension :
+
+| Tableau | Fichier | Indexé par |
+|---|---|---|
+| `xsteps_array` | `bflibrary/include/insspr.h` | largeur |
+| `ysteps_array` | `bflibrary/include/insspr.h` | hauteur |
+| `DRAW_RANGES_COUNT` | `bflibrary/src/general/gtringl.c` | hauteur |
+| `POLY_SCANS_COUNT` | `bflibrary/include/poly.h` | hauteur |
+| `SCREEN_POINT_COORD_MIN/MAX` | `swrendersoft/src/engintrns.c` | largeur |
+| `*W_SCREEN` | `src/game.c` | les deux (largeur × (hauteur+1) octets) |
+
+Dépasser la largeur déborde les tableaux indexés par la largeur, dépasser la
+hauteur ceux indexés par la hauteur. Il n'y a donc pas un budget global à
+répartir entre les deux : **les deux plafonds tiennent indépendamment**.
 
 | Résolution | Résultat |
 |---|---|
 | 1920×1080 | fonctionne |
 | 2560×1080 | fonctionne — plus de pixels, même hauteur |
+| 2560×1440 | fonctionne — les deux plafonds atteints exactement |
 | 3440×1440 | intro et menus passent, le processus est tué au chargement du niveau |
 
-Le plantage ne laisse aucune trace dans `error.log`.
+Le plantage ne laisse aucune trace dans `error.log`. Le lanceur plafonne chaque
+dimension à 2560 et 1440 séparément, ce qui est exactement la forme que prend
+la contrainte.
+
+**Réserve** : le lien entre ces tableaux et la mort observée est déduit de la
+lecture du code, pas d'un débogage. Le processus reçoit un SIGKILL, signature
+du tueur de mémoire du noyau, là où un débordement de tableau donnerait plutôt
+un segfault — cette partie n'est pas élucidée.
 
 #### 4. Les menus ne sont pas mis à l'échelle
 
@@ -344,7 +377,7 @@ installed along with it.
 
 #### Debian, Ubuntu, Linux Mint
 
-1. Download `swfx-launcher_0.1.0_all.deb` from the
+1. Download `swfx-launcher_0.2.0_all.deb` from the
    **[releases page](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
 2. Double-click the downloaded file: the package installer opens, and one
    click on **Install** is all it takes.
@@ -355,7 +388,7 @@ in the applications menu, under Games.
 From a terminal, if you prefer:
 
 ```bash
-sudo apt install ~/Downloads/swfx-launcher_0.1.0_all.deb
+sudo apt install ~/Downloads/swfx-launcher_0.2.0_all.deb
 ```
 
 A message starting with `N: Download is performed unsandboxed as root…` may
@@ -425,7 +458,7 @@ Terminal=false
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
 ./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.1.0_all.deb
+sudo apt install ./dist/swfx-launcher_0.2.0_all.deb
 ```
 
 Building needs only `dpkg-deb` and `gzip`, both present everywhere on these
@@ -470,18 +503,49 @@ whole source to the whole destination. It changed nothing, for a logical
 reason: both surfaces already share the same ratio, so the stretching
 happens afterwards, in the display chain.
 
-#### 3. The resolution limit is on height
+#### 3. The resolution limit applies to each dimension separately
 
-The wiki states that nothing works above 1080p. The actual measurement is
-more precise: **it's the height that matters, not the pixel count**.
+The wiki states that nothing works above 1080p. That is wrong: **2560×1440
+loads a mission without incident**. Nor is it height alone that decides, or
+the total pixel count.
+
+Both caps come from `bflibrary/include/bfscreen.h`:
+
+```c
+#define MAX_SUPPORTED_SCREEN_WIDTH  2560
+#define MAX_SUPPORTED_SCREEN_HEIGHT 1440
+```
+
+They are never used as a check. They are **fixed array dimensions**, spread
+across the engine, each indexed by one dimension or the other:
+
+| Array | File | Indexed by |
+|---|---|---|
+| `xsteps_array` | `bflibrary/include/insspr.h` | width |
+| `ysteps_array` | `bflibrary/include/insspr.h` | height |
+| `DRAW_RANGES_COUNT` | `bflibrary/src/general/gtringl.c` | height |
+| `POLY_SCANS_COUNT` | `bflibrary/include/poly.h` | height |
+| `SCREEN_POINT_COORD_MIN/MAX` | `swrendersoft/src/engintrns.c` | width |
+| `*W_SCREEN` | `src/game.c` | both (width × (height+1) bytes) |
+
+Exceeding the width overruns the width-indexed arrays, exceeding the height
+the height-indexed ones. There is no global budget to split between the two:
+**the two caps hold independently**.
 
 | Resolution | Result |
 |---|---|
 | 1920×1080 | works |
 | 2560×1080 | works — more pixels, same height |
+| 2560×1440 | works — both caps hit exactly |
 | 3440×1440 | intro and menus pass, the process is killed when a level loads |
 
-The crash leaves no trace in `error.log`.
+The crash leaves no trace in `error.log`. The launcher caps each dimension at
+2560 and 1440 separately, which is exactly the shape the constraint takes.
+
+**Caveat**: the link between these arrays and the observed death is inferred
+from reading the code, not from debugging. The process receives a SIGKILL, the
+signature of the kernel out-of-memory killer, where an array overrun would more
+likely give a segfault — that part is unexplained.
 
 #### 4. Menus are not scaled
 

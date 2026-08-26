@@ -60,8 +60,14 @@ APP_ID = "org.swfans.SwfxLauncher"
 SETTINGS_PATH = os.path.expanduser("~/.config/swfx-launcher.json")
 DEFAULT_GAME_DIR = os.path.expanduser("~/games/syndwarsfx")
 
-# Mission view limits (3D renderer).
-MAX_GAME_HEIGHT = 1080
+# Mission view limits, from MAX_SUPPORTED_SCREEN_{WIDTH,HEIGHT} in the game's
+# bflibrary/include/bfscreen.h. Those defines are never used as a check: they
+# size fixed arrays throughout the renderer, each indexed by one dimension or
+# the other (xsteps_array by width, ysteps_array and POLY_SCANS_COUNT by
+# height, the W_SCREEN buffer by both). So the constraint really is two
+# independent caps, not a pixel budget, and capping each dimension is the
+# right shape. Above either one the game dies when a mission loads.
+MAX_GAME_HEIGHT = 1440
 MAX_GAME_WIDTH = 2560
 
 # Above this height, video element placement degrades.
@@ -149,12 +155,12 @@ STRINGS = {
               "cannot be validated and could make startup fail. Only "
               "windowed mode is offered."},
     "res_limit": {
-        "fr": "Le moteur ne supporte pas plus de %d pixels de hauteur : "
-              "au-dela, le jeu se ferme au chargement de la mission. La "
-              "largeur peut depasser 1920 — %dx%d fonctionne.",
-        "en": "The renderer does not support more than %d pixels of height: "
-              "beyond that the game exits when a mission loads. Width may go "
-              "past 1920 — %dx%d works."},
+        "fr": "Le moteur ne supporte pas plus de %d pixels de large ni %d de "
+              "haut : au-dela, le jeu se ferme au chargement de la mission. "
+              "%dx%d fonctionne.",
+        "en": "The renderer supports no more than %d pixels of width and %d "
+              "of height: beyond that the game exits when a mission loads. "
+              "%dx%d works."},
 
     "sec_aspect": {"fr": "Proportions a l'ecran", "en": "On-screen aspect"},
     "keep_aspect": {
@@ -311,14 +317,15 @@ STRINGS = {
         "fr": "Aucune resolution selectionnee.",
         "en": "No resolution selected."},
     "too_tall": {
-        "fr": "Hauteur %d trop grande : le jeu se ferme au chargement de la "
-              "mission au-dela de %d pixels de haut.",
-        "en": "Height %d is too large: the game exits when a mission loads "
-              "beyond %d pixels of height."},
+        "fr": "Hauteur %d trop grande : le jeu ne prend pas en charge plus de "
+              "%d pixels de haut, et se ferme au chargement de la mission.",
+        "en": "Height %d is too large: the game supports no more than %d "
+              "pixels of height, and exits when a mission loads."},
     "too_wide": {
-        "fr": "Largeur %d non validee : %d est la plus grande largeur testee "
-              "comme fonctionnelle.",
-        "en": "Width %d is untested: %d is the largest width known to work."},
+        "fr": "Largeur %d trop grande : le jeu ne prend pas en charge plus de "
+              "%d pixels de large, et se ferme au chargement de la mission.",
+        "en": "Width %d is too large: the game supports no more than %d "
+              "pixels of width, and exits when a mission loads."},
     "not_a_mode": {
         "fr": "%dx%d n'est pas un mode de votre ecran : cochez « Mode "
               "fenetre » ou choisissez une autre resolution.",
@@ -785,8 +792,8 @@ class LauncherWindow(Gtk.ApplicationWindow):
         box.append(self.res_note)
 
         box.append(self.small_note("res_limit",
-                                   args=(MAX_GAME_HEIGHT, MAX_GAME_WIDTH,
-                                        MAX_GAME_HEIGHT)))
+                                   args=(MAX_GAME_WIDTH, MAX_GAME_HEIGHT,
+                                         MAX_GAME_WIDTH, MAX_GAME_HEIGHT)))
 
         box.append(Gtk.Separator())
         box.append(self.section_label(self.tr("sec_aspect")))

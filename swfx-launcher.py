@@ -108,6 +108,14 @@ ZOOM_DEFAULT_STEP = 9
 
 ADVANCED_KEYS = ["-L", "-w"]
 
+# Frames drawn per game turn. The simulation always advances 16 turns a
+# second, so the setting is really a frame rate: 1 keeps the original 16
+# images a second, 4 gives 64. Only a game built with FramesPerTurn support
+# understands the key, hence the marker used to detect it.
+GAME_TURNS_PER_SECOND = 16
+FRAMES_PER_TURN_MAX = 8
+FRAMES_SUPPORT_MARKER = b"FramesPerTurn"
+
 MODE_RE = re.compile(r'^\s*(\d+)\s*x\s*(\d+)\s*([xw])\s*(\d+)\s*$', re.I)
 SIZE_RE = re.compile(r'^\s*(\d+)\s*[xX]\s*(\d+)\s*$')
 XRANDR_MODE_RE = re.compile(r'^\s+(\d+)x(\d+)\s')
@@ -162,6 +170,26 @@ STRINGS = {
         "en": "The renderer supports no more than %d pixels of width and %d "
               "of height: beyond that the game exits when a mission loads. "
               "%dx%d works."},
+
+    "sec_frames": {"fr": "Fluidite", "en": "Smoothness"},
+    "frames_label": {"fr": "Images par seconde", "en": "Frames per second"},
+    "frames_note": {
+        "fr": "Le jeu avance toujours a 16 tours par seconde ; ce reglage "
+              "dessine des images intermediaires entre eux. Plus il est "
+              "eleve, plus le defilement est fluide, et plus le processeur "
+              "travaille.",
+        "en": "The game still advances at 16 turns a second; this setting "
+              "draws extra frames in between. The higher it is, the smoother "
+              "the scrolling, and the harder the processor works."},
+    "frames_warning": {
+        "fr": "Si la machine ne suit pas, le jeu ralentit au lieu de sauter "
+              "des images. Une valeur plus basse, ou une definition plus "
+              "petite, corrige cela. Montez d'un cran a la fois tant que la "
+              "vitesse du jeu reste normale.",
+        "en": "If the machine cannot keep up, the game slows down rather "
+              "than dropping frames. A lower value, or a smaller resolution, "
+              "fixes that. Raise it one step at a time while the game speed "
+              "still feels normal."},
 
     "sec_aspect": {"fr": "Proportions a l'ecran", "en": "On-screen aspect"},
     "keep_aspect": {
@@ -224,6 +252,7 @@ STRINGS = {
         "en": "<b>Menus:</b> fixed at 640x480. The game draws their elements "
               "at a fixed size without scaling, so a higher value gains no "
               "sharpness and pushes captions out of the frame."},
+
 
     "monitor_none": {"fr": "Moniteur non detecte.", "en": "No monitor found."},
     "monitor_info": {
@@ -717,6 +746,9 @@ class LauncherWindow(Gtk.ApplicationWindow):
 
         self.advanced_switches = {}
         self.video_buttons = {}
+        if not hasattr(self, "_binary_cache_path"):
+            self._binary_cache_path = None
+            self._binary_cache = b""
         self._items = []
         self._loading = False
 
@@ -807,6 +839,23 @@ class LauncherWindow(Gtk.ApplicationWindow):
         scroller.set_child(box)
         return scroller, box
 
+    def game_binary_knows(self, marker):
+        """Whether the installed game understands a given config file key.
+
+        The stock release understands neither of the keys looked for here: it
+        would log a warning and behave as before, so the matching settings are
+        hidden rather than offered with no effect.
+        """
+        path = os.path.join(self.game_dir, "syndwarsfx")
+        if self._binary_cache_path != path:
+            try:
+                with open(path, "rb") as handle:
+                    self._binary_cache = handle.read()
+            except OSError:
+                self._binary_cache = b""
+            self._binary_cache_path = path
+        return marker in self._binary_cache
+
     def build_display_tab(self):
         scroller, box = self.scrolled_box(14)
 
@@ -831,6 +880,24 @@ class LauncherWindow(Gtk.ApplicationWindow):
         box.append(self.small_note("res_limit",
                                    args=(MAX_GAME_WIDTH, MAX_GAME_HEIGHT,
                                          MAX_GAME_WIDTH, MAX_GAME_HEIGHT)))
+
+        self.frames_drop = None
+        if self.game_binary_knows(FRAMES_SUPPORT_MARKER):
+            box.append(Gtk.Separator())
+            box.append(self.section_label(self.tr("sec_frames")))
+
+            frow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+            frow.append(Gtk.Label(label=self.tr("frames_label"), xalign=0))
+            self.frames_drop = Gtk.DropDown.new_from_strings(
+                [str(GAME_TURNS_PER_SECOND * n)
+                 for n in range(1, FRAMES_PER_TURN_MAX + 1)])
+            self.frames_drop.connect("notify::selected",
+                                     lambda *_: self.on_changed())
+            frow.append(self.frames_drop)
+            box.append(frow)
+
+            box.append(self.small_note("frames_note"))
+            box.append(self.small_note("frames_warning"))
 
         box.append(Gtk.Separator())
         box.append(self.section_label(self.tr("sec_aspect")))
@@ -1051,6 +1118,14 @@ class LauncherWindow(Gtk.ApplicationWindow):
             else "upscaled"
         self.video_buttons[mode].set_active(True)
 
+        if self.frames_drop is not None:
+            try:
+                frames = int(self.config.get("FramesPerTurn", "1"))
+            except ValueError:
+                frames = 1
+            frames = max(1, min(FRAMES_PER_TURN_MAX, frames))
+            self.frames_drop.set_selected(frames - 1)
+
         try:
             zoom_max = int(self.rules.get("ZoomMax", "260"))
         except ValueError:
@@ -1209,6 +1284,10 @@ class LauncherWindow(Gtk.ApplicationWindow):
             self.config.set("ResFMVVidHi", FMV_HI_DEFAULT)
             self.config.set("ResFMVidLo", FMV_LO_DEFAULT)
 
+        if self.frames_drop is not None:
+            self.config.set("FramesPerTurn",
+                            self.frames_drop.get_selected() + 1)
+
         step, (lo, hi) = self.zoom_step()
         self.rules.set("ZoomMin", lo)
         self.rules.set("ZoomMax", hi)
@@ -1332,7 +1411,9 @@ class LauncherWindow(Gtk.ApplicationWindow):
             if folder is not None:
                 self.game_dir = folder.get_path()
                 self.save_settings()
-                self.reload_all()
+                # Rebuild rather than reload: whether the frame rate setting
+                # is offered depends on the game found in the new folder.
+                self.build_ui()
 
         dialog.select_folder(self, None, done)
 

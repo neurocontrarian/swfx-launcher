@@ -68,7 +68,7 @@ installés automatiquement avec lui.
 
 #### Debian, Ubuntu, Linux Mint
 
-1. Téléchargez `swfx-launcher_0.2.1_all.deb` depuis la
+1. Téléchargez `swfx-launcher_0.3.0_all.deb` depuis la
    **[page des versions](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
 2. Double-cliquez sur le fichier téléchargé : l'installateur de paquets
    s'ouvre, il suffit de cliquer sur **Installer**.
@@ -79,7 +79,7 @@ ensuite dans le menu des applications, section Jeux.
 En terminal, si vous préférez :
 
 ```bash
-sudo apt install ~/Téléchargements/swfx-launcher_0.2.1_all.deb
+sudo apt install ~/Téléchargements/swfx-launcher_0.3.0_all.deb
 ```
 
 Un message commençant par `N: Download is performed unsandboxed as root…`
@@ -152,7 +152,7 @@ Terminal=false
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
 ./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.2.1_all.deb
+sudo apt install ./dist/swfx-launcher_0.3.0_all.deb
 ```
 
 La construction ne demande que `dpkg-deb` et `gzip`, présents partout sur
@@ -377,7 +377,7 @@ installed along with it.
 
 #### Debian, Ubuntu, Linux Mint
 
-1. Download `swfx-launcher_0.2.1_all.deb` from the
+1. Download `swfx-launcher_0.3.0_all.deb` from the
    **[releases page](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
 2. Double-click the downloaded file: the package installer opens, and one
    click on **Install** is all it takes.
@@ -388,7 +388,7 @@ in the applications menu, under Games.
 From a terminal, if you prefer:
 
 ```bash
-sudo apt install ~/Downloads/swfx-launcher_0.2.1_all.deb
+sudo apt install ~/Downloads/swfx-launcher_0.3.0_all.deb
 ```
 
 A message starting with `N: Download is performed unsandboxed as root…` may
@@ -458,7 +458,7 @@ Terminal=false
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
 ./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.2.1_all.deb
+sudo apt install ./dist/swfx-launcher_0.3.0_all.deb
 ```
 
 Building needs only `dpkg-deb` and `gzip`, both present everywhere on these

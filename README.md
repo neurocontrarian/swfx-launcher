@@ -53,7 +53,10 @@ l'interface.
 - Images par seconde, uniquement si le binaire du jeu comprend la clé
   `FramesPerTurn` : ce n'est pas encore le cas des versions publiées du
   portage, la section reste donc invisible
-- Saut de l'intro, lancement direct d'une mission, options avancées
+- Taille de la pluie, des flocons et des étoiles, uniquement si le binaire
+  du jeu comprend les clés `[atmospheric]` : même réserve que ci-dessus
+- Saut de l'intro, lancement direct d'une mission avec le nom des campagnes
+  et des missions du jeu installé, options avancées
 - Sauvegarde automatique en `.bak` avant chaque écriture, et bouton de
   restauration
 - Consultation de `error.log` depuis l'interface
@@ -71,7 +74,7 @@ installés automatiquement avec lui.
 
 #### Debian, Ubuntu, Linux Mint
 
-1. Téléchargez `swfx-launcher_0.3.0_all.deb` depuis la
+1. Téléchargez `swfx-launcher_0.4.0_all.deb` depuis la
    **[page des versions](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
 2. Double-cliquez sur le fichier téléchargé : l'installateur de paquets
    s'ouvre, il suffit de cliquer sur **Installer**.
@@ -82,7 +85,7 @@ ensuite dans le menu des applications, section Jeux.
 En terminal, si vous préférez :
 
 ```bash
-sudo apt install ~/Téléchargements/swfx-launcher_0.3.0_all.deb
+sudo apt install ~/Téléchargements/swfx-launcher_0.4.0_all.deb
 ```
 
 Un message commençant par `N: Download is performed unsandboxed as root…`
@@ -155,7 +158,7 @@ Terminal=false
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
 ./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.3.0_all.deb
+sudo apt install ./dist/swfx-launcher_0.4.0_all.deb
 ```
 
 La construction ne demande que `dpkg-deb` et `gzip`, présents partout sur
@@ -311,6 +314,30 @@ du jeu du rendu fait l'objet du ticket
 [#164](https://github.com/swfans/syndwarsfx/issues/164), ouvert et non
 implémenté. Le réglage attend donc ce travail en amont.
 
+#### 11. Les effets atmosphériques sont dimensionnés en pixels d'écran
+
+La goutte de pluie, le flocon de neige et l'étoile de fond sont dessinés à
+partir de la hauteur de l'image : `hauteur / 200`, ou `/ 300` pour les
+étoiles. Sur l'écran de 320x200 pour lequel le jeu a été dessiné, les trois
+font un pixel. En 1080 lignes la goutte en fait cinq de large, et la pluie
+ressemble à des barres.
+
+La discussion en amont — ticket
+[#417](https://github.com/swfans/syndwarsfx/pull/417) — a abouti à une
+section `[atmospheric]` de `rules.ini` avec un plafond par effet, `0` gardant
+la mise à l'échelle actuelle. Le lanceur écrit ces trois clés. La neige n'est
+utilisée par aucune mission livrée, et les étoiles ne se voient que dans la
+mission de la station orbitale.
+
+#### 12. `-g` et `-m` ne vont pas ensemble
+
+`-g` démarre le jeu sur son menu, `-m` charge une mission précise. Passer les
+deux charge bien la mission — on entend sa météo — puis dessine le menu
+par-dessus. Le lanceur n'envoie donc plus `-g` quand une mission est
+demandée. Les numéros vont de 0 à 3 pour les campagnes (Eurocorp, Church,
+Unguided, Various) et s'arrêtent au vrai nombre de missions de chacune ; la
+mission 0 est une case vide que le jeu refuse de charger.
+
 ### Notes de compilation du port
 
 Sans rapport direct avec le lanceur, mais utile à qui compile SyndWarsFX
@@ -370,7 +397,10 @@ fail, and explains each choice inside the interface.
 - Frames per second, only if the game binary understands the
   `FramesPerTurn` key: released builds of the port do not yet, so the
   section stays hidden
-- Skip intro, start a specific mission, advanced options
+- Size of the rain, the snow and the stars, only if the game binary
+  understands the `[atmospheric]` keys: same reservation as above
+- Skip intro, start a specific mission with the campaign and mission names
+  of the installed game, advanced options
 - Automatic `.bak` backup before every write, with a restore button
 - `error.log` viewer built in
 - French and English interface
@@ -387,7 +417,7 @@ installed along with it.
 
 #### Debian, Ubuntu, Linux Mint
 
-1. Download `swfx-launcher_0.3.0_all.deb` from the
+1. Download `swfx-launcher_0.4.0_all.deb` from the
    **[releases page](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
 2. Double-click the downloaded file: the package installer opens, and one
    click on **Install** is all it takes.
@@ -398,7 +428,7 @@ in the applications menu, under Games.
 From a terminal, if you prefer:
 
 ```bash
-sudo apt install ~/Downloads/swfx-launcher_0.3.0_all.deb
+sudo apt install ~/Downloads/swfx-launcher_0.4.0_all.deb
 ```
 
 A message starting with `N: Download is performed unsandboxed as root…` may
@@ -468,7 +498,7 @@ Terminal=false
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
 ./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.3.0_all.deb
+sudo apt install ./dist/swfx-launcher_0.4.0_all.deb
 ```
 
 Building needs only `dpkg-deb` and `gzip`, both present everywhere on these
@@ -620,6 +650,28 @@ builds of the port do not. Decoupling game speed from rendering is the
 subject of ticket
 [#164](https://github.com/swfans/syndwarsfx/issues/164), open and not
 implemented. The setting is waiting on that upstream work.
+
+#### 11. Atmospheric effects are sized in screen pixels
+
+The rain drop, the snow flake and the background star are drawn from the
+picture height: `height / 200`, or `/ 300` for the stars. On the 320x200
+display the game was drawn for, all three are one pixel. At 1080 lines the
+drop is five pixels wide, and the rain reads as bars.
+
+The upstream discussion — ticket
+[#417](https://github.com/swfans/syndwarsfx/pull/417) — settled on an
+`[atmospheric]` section of `rules.ini` with one cap per effect, `0` keeping
+today's scaling. The launcher writes those three keys. No shipped mission
+uses snow, and the stars are only seen in the orbital station mission.
+
+#### 12. `-g` and `-m` do not go together
+
+`-g` starts the game at its menu, `-m` loads a specific mission. Passing both
+does load the mission — its weather can be heard — and then draws the menu on
+top of it. The launcher no longer sends `-g` when a mission is asked for.
+Campaign numbers run from 0 to 3 (Eurocorp, Church, Unguided, Various) and
+mission numbers stop at the real count of each; mission 0 is an empty slot
+the game refuses to load.
 
 ### Building the port
 

@@ -116,6 +116,20 @@ GAME_TURNS_PER_SECOND = 16
 FRAMES_PER_TURN_MAX = 8
 FRAMES_SUPPORT_MARKER = b"FramesPerTurn"
 
+# Size limits for the atmospheric effects, in the [atmospheric] section of
+# rules.ini. The rain drop, the snow flake and the background star are each
+# sized from the screen height, so what was a single pixel on the display the
+# game was drawn for becomes a block on a modern one. A limit of 0 keeps that
+# scaling. Only a game which understands the keys is offered the setting.
+EFFECT_SIZE_MAX = 4
+ATMOSPHERIC_SECTION = "atmospheric"
+ATMOSPHERIC_SUPPORT_MARKER = b"RainDropMaxWidth"
+ATMOSPHERIC_KEYS = (
+    ("rain", "RainDropMaxWidth"),
+    ("snow", "SnowFlakeMaxSize"),
+    ("star", "StarMaxSize"),
+)
+
 MODE_RE = re.compile(r'^\s*(\d+)\s*x\s*(\d+)\s*([xw])\s*(\d+)\s*$', re.I)
 SIZE_RE = re.compile(r'^\s*(\d+)\s*[xX]\s*(\d+)\s*$')
 XRANDR_MODE_RE = re.compile(r'^\s+(\d+)x(\d+)\s')
@@ -292,6 +306,27 @@ STRINGS = {
         "en": "Intended by the original game but broken back then, repaired "
               "by the port."},
 
+    "sec_atmospheric": {"fr": "Effets atmospheriques",
+                        "en": "Atmospheric effects"},
+    "atm_rain": {"fr": "Largeur de la pluie", "en": "Rain drop width"},
+    "atm_snow": {"fr": "Taille des flocons", "en": "Snow flake size"},
+    "atm_star": {"fr": "Taille des etoiles", "en": "Star size"},
+    "atm_scaled": {"fr": "Comme la resolution",
+                   "en": "Scaled to the resolution"},
+    "atm_pixels": {"fr": "%d pixel", "en": "%d pixel"},
+    "atm_pixels_n": {"fr": "%d pixels", "en": "%d pixels"},
+    "atm_note": {
+        "fr": "La goutte, le flocon et l'etoile sont dessines a partir de la "
+              "hauteur de l'image : ce qui faisait un pixel sur l'ecran "
+              "d'origine en fait cinq sur un ecran de 1080 lignes, et la "
+              "pluie ressemble a des barres. Une valeur fixe borne la taille "
+              "sans rien changer d'autre a l'effet.",
+        "en": "The drop, the flake and the star are sized from the picture "
+              "height: what was one pixel on the display the game was drawn "
+              "for is five on a 1080 line screen, and the rain reads as bars. "
+              "A fixed value caps the size and changes nothing else about "
+              "the effect."},
+
     "skip_intro": {
         "fr": "Sauter la video d'intro",
         "en": "Skip the intro video"},
@@ -304,9 +339,13 @@ STRINGS = {
     "mission_note": {
         "fr": "Permet de rejouer une mission precise, y compris les niveaux "
               "pre-alpha et ceux de la version PlayStation livres avec le "
-              "jeu.",
+              "jeu. Les numeros, les noms et les campagnes sont lus dans le "
+              "jeu installe ; certaines cases sont vides, le jeu les garde "
+              "pour rien.",
         "en": "Replay a specific mission, including the pre-alpha levels and "
-              "the PlayStation ones shipped with the game."},
+              "the PlayStation ones shipped with the game. The numbers, the "
+              "names and the campaigns are read from the installed game; "
+              "some slots are empty, the game keeps them for nothing."},
     "advanced": {"fr": "Reglages avances", "en": "Advanced settings"},
     "flag_L": {
         "fr": "Corrections approfondies des niveaux",
@@ -649,7 +688,110 @@ class ConfigIni(IniFile):
 
 
 class RulesIni(IniFile):
-    pass
+    """Adds section placement, which rules.ini needs and config.ini does not.
+
+    The game looks for each key inside its own `[section]`, so a key which is
+    not in the file yet cannot simply be appended: it would land in whatever
+    section happens to be last and never be read.
+    """
+
+    SECTION_RE = re.compile(r'^\s*\[([^\]]*)\]\s*$')
+
+    def _section_end(self, section):
+        """Index just past the last line of a section, or None if absent."""
+        start = None
+        for i, line in enumerate(self.lines):
+            m = self.SECTION_RE.match(line)
+            if m is None:
+                continue
+            if start is not None:
+                return i
+            if m.group(1).strip().lower() == section.lower():
+                start = i
+        return None if start is None else len(self.lines)
+
+    def set_in_section(self, section, key, value):
+        for line in self.lines:
+            if self._is_key(line, key):
+                self.set(key, value)
+                return
+        line = "%s=%s" % (key, self.format_value(value))
+        end = self._section_end(section)
+        if end is None:
+            if self.lines and self.lines[-1].strip():
+                self.lines.append("")
+            self.lines.append("[%s]" % section)
+            self.lines.append(line)
+            return
+        while end > 0 and not self.lines[end - 1].strip():
+            end -= 1
+        self.lines.insert(end, line)
+
+
+# --------------------------------------------------------------------------
+# Campaigns
+# --------------------------------------------------------------------------
+
+# The game reads conf/miss000.ini, then 001, and stops at the first number
+# missing, so only a run starting at 000 can be reached with -m, and never
+# more than CAMPAIGNS_MAX of them. A mission number is the index of a
+# [missionN] section inside the file of its campaign.
+CAMPAIGNS_MAX = 6
+MISSIONS_MAX = 120
+
+# What the port ships, used only when its conf files cannot be read.
+CAMPAIGNS_FALLBACK = (("Eurocorp", 110), ("Church", 111),
+                      ("Unguided", 104), ("Various", 100))
+
+CAMPAIGN_NAME_RE = re.compile(r'^\s*TextName\s*=\s*(.*?)\s*$', re.I)
+MISSION_SECTION_RE = re.compile(r'^\s*\[mission(\d+)\]\s*$', re.I)
+MISSION_NAME_RE = re.compile(r'^\s*Name\s*=\s*(.*?)\s*$', re.I)
+
+
+def read_campaign_file(path):
+    """Campaign name and mission names, from one conf/missNNN.ini file.
+
+    Returns None when the file is missing or holds no mission, which is how
+    the game itself decides that a campaign number does not exist.
+    """
+    name = ""
+    missions = {}
+    current = None
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                m = MISSION_SECTION_RE.match(line)
+                if m is not None:
+                    current = int(m.group(1))
+                    continue
+                if current is None:
+                    m = CAMPAIGN_NAME_RE.match(line)
+                    if m is not None:
+                        name = m.group(1)
+                    continue
+                m = MISSION_NAME_RE.match(line)
+                if m is not None and current not in missions:
+                    missions[current] = m.group(1)
+    except OSError:
+        return None
+    if not missions:
+        return None
+    count = min(max(missions) + 1, MISSIONS_MAX)
+    return name, [missions.get(i, "") for i in range(count)]
+
+
+def read_campaigns(game_dir):
+    """The campaigns of the installed game, in the order -m numbers them."""
+    found = []
+    for num in range(CAMPAIGNS_MAX):
+        one = read_campaign_file(
+            os.path.join(game_dir, "conf", "miss%03d.ini" % num))
+        if one is None:
+            break
+        found.append(one)
+    if found:
+        return found
+    return [(name, [""] * count) for name, count in CAMPAIGNS_FALLBACK]
 
 
 # --------------------------------------------------------------------------
@@ -977,6 +1119,29 @@ class LauncherWindow(Gtk.ApplicationWindow):
         box.append(self.target_health)
         box.append(self.small_note("target_health_desc", 28))
 
+        self.effect_drops = {}
+        if self.game_binary_knows(ATMOSPHERIC_SUPPORT_MARKER):
+            box.append(Gtk.Separator())
+            box.append(self.section_label(self.tr("sec_atmospheric")))
+
+            choices = [self.tr("atm_scaled")]
+            for n in range(1, EFFECT_SIZE_MAX + 1):
+                key = "atm_pixels" if n == 1 else "atm_pixels_n"
+                choices.append(self.tr(key) % n)
+
+            grid = Gtk.Grid(column_spacing=10, row_spacing=6)
+            for row, (name, _key) in enumerate(ATMOSPHERIC_KEYS):
+                label = Gtk.Label(label=self.tr("atm_" + name), xalign=0)
+                label.set_hexpand(True)
+                grid.attach(label, 0, row, 1, 1)
+                drop = Gtk.DropDown.new_from_strings(choices)
+                drop.connect("notify::selected", lambda *_: self.on_changed())
+                grid.attach(drop, 1, row, 1, 1)
+                self.effect_drops[name] = drop
+            box.append(grid)
+
+            box.append(self.small_note("atm_note"))
+
         return scroller
 
     def build_launch_tab(self):
@@ -994,16 +1159,22 @@ class LauncherWindow(Gtk.ApplicationWindow):
         self.mission_enable = Gtk.CheckButton(label=self.tr("enable"))
         self.mission_enable.connect("toggled", lambda *_: self.on_changed())
         mrow.append(self.mission_enable)
+        self.campaigns = read_campaigns(self.game_dir)
+
         mrow.append(Gtk.Label(label=self.tr("campaign"), xalign=0))
-        self.campaign_spin = Gtk.SpinButton.new_with_range(0, 99, 1)
-        self.campaign_spin.connect("value-changed",
-                                   lambda *_: self.on_changed())
+        self.campaign_spin = Gtk.SpinButton.new_with_range(
+            0, len(self.campaigns) - 1, 1)
+        self.campaign_spin.connect("value-changed", self.on_mission_picked)
         mrow.append(self.campaign_spin)
         mrow.append(Gtk.Label(label=self.tr("mission"), xalign=0))
-        self.mission_spin = Gtk.SpinButton.new_with_range(0, 999, 1)
-        self.mission_spin.connect("value-changed", lambda *_: self.on_changed())
+        self.mission_spin = Gtk.SpinButton.new_with_range(1, 1, 1)
+        self.mission_spin.connect("value-changed", self.on_mission_picked)
         mrow.append(self.mission_spin)
         box.append(mrow)
+
+        self.mission_which = self.small_label("")
+        box.append(self.mission_which)
+        self.sync_mission_row()
 
         box.append(self.small_note("mission_note"))
 
@@ -1136,6 +1307,16 @@ class LauncherWindow(Gtk.ApplicationWindow):
             self.rules.get("ShowTargetHealth", "False").strip().lower()
             in ("true", "1", "yes"))
 
+        for name, key in ATMOSPHERIC_KEYS:
+            drop = self.effect_drops.get(name)
+            if drop is None:
+                continue
+            try:
+                size = int(self.rules.get(key, "0"))
+            except ValueError:
+                size = 0
+            drop.set_selected(max(0, min(EFFECT_SIZE_MAX, size)))
+
         self._loading = False
         self.on_zoom_moved()
         self.on_changed()
@@ -1170,6 +1351,28 @@ class LauncherWindow(Gtk.ApplicationWindow):
             return (new_width, height)
         options = four_three_sizes(self.all_sizes, MAX_VIDEO_HEIGHT)
         return options[0] if options else None
+
+    def sync_mission_row(self):
+        """Keeps the mission range and the two names on the campaign picked.
+
+        Each campaign has its own count of missions, so the highest mission
+        number moves with the campaign; the names are what the game shows for
+        that slot, empty ones included.
+        """
+        campgn = int(self.campaign_spin.get_value())
+        name, missions = self.campaigns[min(campgn, len(self.campaigns) - 1)]
+        # Mission 0 is the empty slot every campaign starts with; the game
+        # refuses to load it, so the numbers offered start at one.
+        self.mission_spin.set_range(1, len(missions) - 1)
+        missi = int(self.mission_spin.get_value())
+        title = missions[missi] if missi < len(missions) else ""
+        self.mission_which.set_markup(
+            "<small>%s</small>"
+            % GLib.markup_escape_text(" - ".join(p for p in (name, title) if p)))
+
+    def on_mission_picked(self, _spin):
+        self.sync_mission_row()
+        self.on_changed()
 
     def on_changed(self):
         if self._loading:
@@ -1229,7 +1432,14 @@ class LauncherWindow(Gtk.ApplicationWindow):
                 self.tr("monitor_info_short") % (w, h, aspect_label(w, h)))
 
     def build_command(self):
-        cmd = [os.path.join(self.game_dir, "syndwarsfx"), "-g"]
+        single = self.mission_enable.get_active()
+
+        cmd = [os.path.join(self.game_dir, "syndwarsfx")]
+        # `-g` starts the game at its menu, and the menu wins over a mission
+        # asked for with `-m`: the mission loads, its weather can be heard,
+        # and the menu is drawn on top of it. The two do not go together.
+        if not single:
+            cmd.append("-g")
         if self.windowed_check.get_active():
             cmd.append("-W")
         if self.skip_intro.get_active():
@@ -1237,7 +1447,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
         for flag in ADVANCED_KEYS:
             if self.advanced_switches[flag].get_active():
                 cmd.append(flag)
-        if self.mission_enable.get_active():
+        if single:
             cmd.append("-m")
             cmd.append("%d,%d" % (int(self.campaign_spin.get_value()),
                                   int(self.mission_spin.get_value())))
@@ -1293,6 +1503,12 @@ class LauncherWindow(Gtk.ApplicationWindow):
         self.rules.set("ZoomMax", hi)
         self.rules.set("ShowTargetHealth",
                        "True" if self.target_health.get_active() else "False")
+
+        for name, key in ATMOSPHERIC_KEYS:
+            drop = self.effect_drops.get(name)
+            if drop is not None:
+                self.rules.set_in_section(ATMOSPHERIC_SECTION, key,
+                                          drop.get_selected())
 
         try:
             self.config.save()

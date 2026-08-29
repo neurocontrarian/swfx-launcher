@@ -50,6 +50,9 @@ l'interface.
 - Traitement des vidéos : agrandies à l'écran, ou dans un mode 4:3 dédié
 - Champ de vision sur une échelle de 1 à 10, écrite dans `rules.ini`
 - Affichage de la santé des cibles
+- Images par seconde, uniquement si le binaire du jeu comprend la clé
+  `FramesPerTurn` : ce n'est pas encore le cas des versions publiées du
+  portage, la section reste donc invisible
 - Saut de l'intro, lancement direct d'une mission, options avancées
 - Sauvegarde automatique en `.bak` avant chaque écriture, et bouton de
   restauration
@@ -298,11 +301,15 @@ bords, faute de place dans les tableaux de rendu — voir le ticket
 [#255](https://github.com/swfans/syndwarsfx/issues/255) — et l'horizon peut se
 replier sur lui-même. Ce ne sont pas des bugs du lanceur.
 
-#### 10. Le nombre d'images par seconde n'est pas réglable
+#### 10. Le nombre d'images par seconde n'est pas encore réglable
 
-Découpler la vitesse du jeu du rendu fait l'objet du ticket
+Le jeu avance à 16 tours par seconde et dessine une image par tour. Le
+lanceur sait écrire `FramesPerTurn`, qui ajoute des images intermédiaires,
+mais la section n'apparaît que si le binaire du jeu comprend cette clé — et
+les versions publiées du portage ne la comprennent pas. Découpler la vitesse
+du jeu du rendu fait l'objet du ticket
 [#164](https://github.com/swfans/syndwarsfx/issues/164), ouvert et non
-implémenté. Rien à exposer côté lanceur.
+implémenté. Le réglage attend donc ce travail en amont.
 
 ### Notes de compilation du port
 
@@ -360,6 +367,9 @@ fail, and explains each choice inside the interface.
 - Video handling: enlarged to fit the screen, or in a dedicated 4:3 mode
 - Field of view on a 1 to 10 scale, written to `rules.ini`
 - Target health display
+- Frames per second, only if the game binary understands the
+  `FramesPerTurn` key: released builds of the port do not yet, so the
+  section stays hidden
 - Skip intro, start a specific mission, advanced options
 - Automatic `.bak` backup before every write, with a restore button
 - `error.log` viewer built in
@@ -601,11 +611,15 @@ lack of room in the rendering tables — see ticket
 [#255](https://github.com/swfans/syndwarsfx/issues/255) — and the horizon
 can fold over itself. These are not bugs in the launcher.
 
-#### 10. Frame rate is not adjustable
+#### 10. Frame rate is not adjustable yet
 
-Decoupling game speed from rendering is the subject of ticket
+The game advances at 16 turns a second and draws one frame per turn. The
+launcher can write `FramesPerTurn`, which adds frames in between, but the
+section only appears if the game binary understands that key — and released
+builds of the port do not. Decoupling game speed from rendering is the
+subject of ticket
 [#164](https://github.com/swfans/syndwarsfx/issues/164), open and not
-implemented. Nothing for the launcher to expose.
+implemented. The setting is waiting on that upstream work.
 
 ### Building the port
 

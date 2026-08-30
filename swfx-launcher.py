@@ -63,7 +63,7 @@ APP_ID = "org.swfans.SwfxLauncher"
 
 # Identity. VERSION is kept in step with packaging/control by set-version.sh;
 # do not edit it by hand.
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 DEVELOPER = "neurocontrarian"
 LAUNCHER_REPO = "https://github.com/neurocontrarian/swfx-launcher"
 GAME_REPO = "https://github.com/swfans/syndwarsfx"

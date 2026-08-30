@@ -311,7 +311,7 @@ lanceur sait écrire `FramesPerTurn`, qui ajoute des images intermédiaires,
 mais la section n'apparaît que si le binaire du jeu comprend cette clé — et
 les versions publiées du portage ne la comprennent pas. Découpler la vitesse
 du jeu du rendu fait l'objet du ticket
-[#164](https://github.com/swfans/syndwarsfx/issues/164), ouvert et non
+[#24](https://github.com/swfans/syndwarsfx/issues/24), ouvert et non
 implémenté. Le réglage attend donc ce travail en amont.
 
 #### 11. Les effets atmosphériques sont dimensionnés en pixels d'écran
@@ -648,7 +648,7 @@ launcher can write `FramesPerTurn`, which adds frames in between, but the
 section only appears if the game binary understands that key — and released
 builds of the port do not. Decoupling game speed from rendering is the
 subject of ticket
-[#164](https://github.com/swfans/syndwarsfx/issues/164), open and not
+[#24](https://github.com/swfans/syndwarsfx/issues/24), open and not
 implemented. The setting is waiting on that upstream work.
 
 #### 11. Atmospheric effects are sized in screen pixels

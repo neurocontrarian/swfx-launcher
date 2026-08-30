@@ -60,6 +60,10 @@ l'interface.
 - Sauvegarde automatique en `.bak` avant chaque écriture, et bouton de
   restauration
 - Consultation de `error.log` depuis l'interface
+- Onglet « À propos » : version du lanceur, développeur, adresses des deux
+  dépôts et remerciements
+- Vérification automatique des mises à jour au démarrage, avec installation
+  du paquet en un clic quand une version plus récente est publiée
 - Interface en français et en anglais
 
 ### Prérequis
@@ -403,6 +407,10 @@ fail, and explains each choice inside the interface.
   of the installed game, advanced options
 - Automatic `.bak` backup before every write, with a restore button
 - `error.log` viewer built in
+- An About tab: launcher version, developer, both repository addresses and
+  the credits
+- Update check on start-up, with one-click package install when a newer
+  release is published
 - French and English interface
 
 ### Requirements

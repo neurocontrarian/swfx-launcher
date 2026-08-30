@@ -50,13 +50,29 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
+import urllib.error
+import urllib.request
 
 import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gio, Gdk, GLib
 
 APP_ID = "org.swfans.SwfxLauncher"
+
+# Identity. VERSION is kept in step with packaging/control by set-version.sh;
+# do not edit it by hand.
+VERSION = "0.4.0"
+DEVELOPER = "neurocontrarian"
+LAUNCHER_REPO = "https://github.com/neurocontrarian/swfx-launcher"
+GAME_REPO = "https://github.com/swfans/syndwarsfx"
+
+# Where to look for a newer launcher. The releases carry the .deb built by
+# build-deb.sh, so an update is a download plus one package install.
+RELEASES_API = ("https://api.github.com/repos/neurocontrarian/swfx-launcher"
+                "/releases/latest")
+UPDATE_TIMEOUT = 6
 SETTINGS_PATH = os.path.expanduser("~/.config/swfx-launcher.json")
 DEFAULT_GAME_DIR = os.path.expanduser("~/games/syndwarsfx")
 
@@ -434,6 +450,61 @@ STRINGS = {
     "settings_failed": {
         "fr": "Reglages du lanceur non sauvegardes : %s",
         "en": "Launcher settings not saved: %s"},
+
+    "tab_about": {"fr": "A propos", "en": "About"},
+    "sec_launcher": {"fr": "Ce lanceur", "en": "This launcher"},
+    "about_version": {"fr": "Version %s", "en": "Version %s"},
+    "about_developer": {"fr": "Developpeur : %s", "en": "Developer: %s"},
+    "about_launcher_repo": {"fr": "Depot du lanceur",
+                            "en": "Launcher repository"},
+    "about_game_repo": {"fr": "Depot du jeu SyndWarsFX",
+                        "en": "SyndWarsFX game repository"},
+    "sec_thanks": {"fr": "Remerciements", "en": "Thanks"},
+    "thanks_text": {
+        "fr": "Ce lanceur n'existerait pas sans le portage SyndWarsFX, "
+              "lui-meme continuation du travail d'Unavowed et Gynvael "
+              "Coldwind. Merci a mefistotelis, Moburma, geist22 et a tous "
+              "les contributeurs pour leur retro-ingenierie, leur "
+              "documentation et l'accueil fait aux correctifs proposes. "
+              "Syndicate Wars est a l'origine un jeu de Bullfrog "
+              "Productions ; ce lanceur est un projet independant, sans "
+              "lien avec Electronic Arts.",
+        "en": "This launcher would not exist without the SyndWarsFX port, "
+              "itself a continuation of the work of Unavowed and Gynvael "
+              "Coldwind. Thanks to mefistotelis, Moburma, geist22 and every "
+              "contributor for their reverse engineering, their "
+              "documentation and the welcome given to the fixes sent their "
+              "way. Syndicate Wars is originally a Bullfrog Productions "
+              "game; this launcher is an independent project, unconnected "
+              "to Electronic Arts."},
+
+    "sec_update": {"fr": "Mise a jour", "en": "Update"},
+    "update_checking": {"fr": "Recherche d'une mise a jour...",
+                        "en": "Looking for an update..."},
+    "update_current": {"fr": "Vous avez la derniere version.",
+                       "en": "You have the latest version."},
+    "update_available": {"fr": "Version %s disponible.",
+                         "en": "Version %s available."},
+    "update_unknown": {
+        "fr": "Verification impossible pour le moment.",
+        "en": "Could not check right now."},
+    "update_recheck": {"fr": "Verifier", "en": "Check"},
+    "update_install": {"fr": "Installer la mise a jour",
+                       "en": "Install the update"},
+    "update_downloading": {"fr": "Telechargement...", "en": "Downloading..."},
+    "update_installing": {
+        "fr": "Installation : votre mot de passe va etre demande.",
+        "en": "Installing: your password will be asked for."},
+    "update_done": {
+        "fr": "Mise a jour installee. Fermez et rouvrez le lanceur.",
+        "en": "Update installed. Close and reopen the launcher."},
+    "update_failed": {"fr": "Mise a jour impossible : %s",
+                      "en": "Update failed: %s"},
+    "update_no_deb": {
+        "fr": "Aucun paquet .deb dans cette publication.",
+        "en": "That release carries no .deb package."},
+    "update_open_page": {"fr": "Ouvrir la page de publication",
+                         "en": "Open the release page"},
 }
 
 
@@ -609,6 +680,58 @@ def nearest_zoom_step(zoom_max):
         if best_gap is None or gap < best_gap:
             best_step, best_gap = step, gap
     return best_step
+
+
+# --------------------------------------------------------------------------
+# Updates
+# --------------------------------------------------------------------------
+
+def parse_version(text):
+    """Turns "v0.4.0" or "0.4.0" into a tuple of ints; () when unreadable."""
+    digits = re.findall(r"\d+", text or "")
+    return tuple(int(x) for x in digits)
+
+
+def latest_release():
+    """Asks GitHub for the newest published launcher.
+
+    Returns (version, deb_url, page_url), or None when the question cannot
+    be answered - no network, rate limit, anything else. A launcher which
+    cannot reach GitHub still has to start and work.
+    """
+    req = urllib.request.Request(
+        RELEASES_API,
+        headers={"Accept": "application/vnd.github+json",
+                 "User-Agent": "swfx-launcher/" + VERSION})
+    try:
+        with urllib.request.urlopen(req, timeout=UPDATE_TIMEOUT) as resp:
+            data = json.load(resp)
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    tag = data.get("tag_name") or ""
+    if not parse_version(tag):
+        return None
+    deb_url = None
+    for asset in data.get("assets") or []:
+        if (asset.get("name") or "").endswith(".deb"):
+            deb_url = asset.get("browser_download_url")
+            break
+    return (tag.lstrip("v"), deb_url,
+            data.get("html_url") or LAUNCHER_REPO)
+
+
+def download_to_temp(url):
+    """Fetches a URL into a temporary file and returns its path."""
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "swfx-launcher/" + VERSION})
+    folder = tempfile.mkdtemp(prefix="swfx-launcher-")
+    path = os.path.join(folder, os.path.basename(url) or "update.deb")
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        with open(path, "wb") as out:
+            shutil.copyfileobj(resp, out)
+    return path
 
 
 # --------------------------------------------------------------------------
@@ -817,9 +940,16 @@ class LauncherWindow(Gtk.ApplicationWindow):
         self.output = primary_output(xrandr_text)
         self.scaling_available = scaling_mode_supported(self.output)
 
+        # Update state, shared by the About tab and the background check.
+        # ("checking",), ("current",), ("available", version, deb, page),
+        # ("unknown",), ("busy", message) or ("done",).
+        self.update_state = ("checking",)
+        self.update_checked = False
+
         self.root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.set_child(self.root)
         self.build_ui()
+        self.start_update_check()
 
     # -- translation -------------------------------------------------------
 
@@ -924,6 +1054,8 @@ class LauncherWindow(Gtk.ApplicationWindow):
                              Gtk.Label(label=self.tr("tab_game")))
         notebook.append_page(self.build_launch_tab(),
                              Gtk.Label(label=self.tr("tab_launch")))
+        notebook.append_page(self.build_about_tab(),
+                             Gtk.Label(label=self.tr("tab_about")))
 
         self.root.append(self.build_action_bar())
 
@@ -972,6 +1104,159 @@ class LauncherWindow(Gtk.ApplicationWindow):
         if margin_start:
             lbl.set_margin_start(margin_start)
         return lbl
+
+    def build_about_tab(self):
+        scroller, box = self.scrolled_box(14)
+
+        box.append(self.section_label(self.tr("sec_launcher")))
+        box.append(Gtk.Label(xalign=0,
+                             label=self.tr("about_version") % VERSION))
+        box.append(Gtk.Label(xalign=0,
+                             label=self.tr("about_developer") % DEVELOPER))
+
+        links = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        links.append(Gtk.LinkButton(uri=LAUNCHER_REPO, label=LAUNCHER_REPO,
+                                    halign=Gtk.Align.START))
+        links.append(self.small_label(
+            GLib.markup_escape_text(self.tr("about_launcher_repo")), 12))
+        links.append(Gtk.LinkButton(uri=GAME_REPO, label=GAME_REPO,
+                                    halign=Gtk.Align.START))
+        links.append(self.small_label(
+            GLib.markup_escape_text(self.tr("about_game_repo")), 12))
+        box.append(links)
+
+        box.append(Gtk.Separator())
+        box.append(self.section_label(self.tr("sec_update")))
+
+        self.update_label = self.dim_label()
+        box.append(self.update_label)
+
+        urow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.update_button = Gtk.Button(label=self.tr("update_install"))
+        self.update_button.connect("clicked", self.on_install_update)
+        urow.append(self.update_button)
+        self.recheck_button = Gtk.Button(label=self.tr("update_recheck"))
+        self.recheck_button.connect(
+            "clicked", lambda *_: self.start_update_check(force=True))
+        urow.append(self.recheck_button)
+        box.append(urow)
+
+        box.append(Gtk.Separator())
+        box.append(self.section_label(self.tr("sec_thanks")))
+        thanks = self.dim_label()
+        thanks.set_text(self.tr("thanks_text"))
+        box.append(thanks)
+
+        self.refresh_update_row()
+        return scroller
+
+    # -- updates -----------------------------------------------------------
+
+    def start_update_check(self, force=False):
+        """Asks GitHub in the background; never blocks the window."""
+        if self.update_checked and not force:
+            return
+        self.update_checked = True
+        self.update_state = ("checking",)
+        self.refresh_update_row()
+
+        def worker():
+            found = latest_release()
+            GLib.idle_add(self.finish_update_check, found)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def finish_update_check(self, found):
+        if found is None:
+            self.update_state = ("unknown",)
+        else:
+            version, deb_url, page_url = found
+            if parse_version(version) > parse_version(VERSION):
+                self.update_state = ("available", version, deb_url, page_url)
+            else:
+                self.update_state = ("current",)
+        self.refresh_update_row()
+        return False
+
+    def refresh_update_row(self):
+        """Puts the stored state on screen, if the widgets are still there."""
+        if not hasattr(self, "update_label"):
+            return
+        state = self.update_state
+        kind = state[0]
+
+        if kind == "available":
+            text = self.tr("update_available") % state[1]
+            can_install = True
+            label = (self.tr("update_install") if state[2]
+                     else self.tr("update_open_page"))
+        else:
+            text = {"checking": self.tr("update_checking"),
+                    "current": self.tr("update_current"),
+                    "unknown": self.tr("update_unknown"),
+                    "done": self.tr("update_done")}.get(kind, state[-1])
+            can_install = False
+            label = self.tr("update_install")
+
+        self.update_label.set_text(text)
+        self.update_button.set_label(label)
+        self.update_button.set_visible(can_install)
+        self.update_button.set_sensitive(can_install)
+        self.recheck_button.set_sensitive(kind != "busy")
+
+    def on_install_update(self, _button):
+        if self.update_state[0] != "available":
+            return
+        _kind, _version, deb_url, page_url = self.update_state
+        if not deb_url:
+            Gio.AppInfo.launch_default_for_uri(page_url, None)
+            return
+        if not shutil.which("pkexec"):
+            self.set_status(self.tr("update_failed") % "pkexec")
+            Gio.AppInfo.launch_default_for_uri(page_url, None)
+            return
+
+        self.update_state = ("busy", self.tr("update_downloading"))
+        self.refresh_update_row()
+
+        def worker():
+            try:
+                path = download_to_temp(deb_url)
+            except Exception as exc:
+                GLib.idle_add(self.finish_install, False, str(exc))
+                return
+            GLib.idle_add(self.note_installing)
+            try:
+                done = subprocess.run(
+                    ["pkexec", "apt-get", "install", "-y", path],
+                    capture_output=True, text=True)
+            except Exception as exc:
+                GLib.idle_add(self.finish_install, False, str(exc))
+                return
+            if done.returncode == 0:
+                GLib.idle_add(self.finish_install, True, "")
+            else:
+                detail = (done.stderr or done.stdout or "").strip()
+                GLib.idle_add(self.finish_install, False,
+                              detail.splitlines()[-1] if detail
+                              else "apt-get %d" % done.returncode)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def note_installing(self):
+        self.update_state = ("busy", self.tr("update_installing"))
+        self.refresh_update_row()
+        return False
+
+    def finish_install(self, ok, detail):
+        if ok:
+            self.update_state = ("done",)
+            self.set_status(self.tr("update_done"))
+        else:
+            self.update_state = ("unknown",)
+            self.set_status(self.tr("update_failed") % detail)
+        self.refresh_update_row()
+        return False
 
     def scrolled_box(self, spacing):
         scroller = Gtk.ScrolledWindow()

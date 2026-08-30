@@ -42,6 +42,7 @@ if [ "$old" = "$new" ]; then
 fi
 
 sed -i "s/^Version: $old\$/Version: $new/" packaging/control
+sed -i "s/^VERSION = \"$old\"\$/VERSION = \"$new\"/" swfx-launcher.py
 sed -i "s/swfx-launcher_${old}_all\.deb/swfx-launcher_${new}_all.deb/g" README.md
 
 # Nothing should still name the previous version.

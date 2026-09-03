@@ -63,7 +63,7 @@ APP_ID = "org.swfans.SwfxLauncher"
 
 # Identity. VERSION is kept in step with packaging/control by set-version.sh;
 # do not edit it by hand.
-VERSION = "0.6.2"
+VERSION = "0.6.3"
 DEVELOPER = "neurocontrarian"
 LAUNCHER_REPO = "https://github.com/neurocontrarian/swfx-launcher"
 GAME_REPO = "https://github.com/swfans/syndwarsfx"
@@ -208,40 +208,16 @@ STRINGS = {
     "sec_frames": {"fr": "Fluidite", "en": "Smoothness"},
     "frames_label": {"fr": "Images par tour de jeu", "en": "Frames per game turn"},
     "frames_note": {
-        "fr": "Le jeu avance toujours a 16 tours par seconde, quoi qu'il "
-              "arrive. Ce reglage dit combien d'images sont dessinees entre "
-              "deux tours : 1 donne les 16 images par seconde d'origine, et "
-              "chaque cran en ajoute autant — 2 en donne 32, 4 en donne 64, "
-              "10 en donne 160. Plus il est eleve, plus le defilement est "
-              "fluide et plus le processeur travaille.",
-        "en": "The game always advances at 16 turns a second, whatever "
-              "happens. This setting says how many frames are drawn between "
-              "two turns: 1 gives the original 16 frames a second, and each "
-              "step adds as many again - 2 gives 32, 4 gives 64, 10 gives "
-              "160. The higher it is, the smoother the scrolling, and the "
-              "harder the processor works."},
-    "frames_warning": {
-        "fr": "Si la machine ne suit pas, le jeu ralentit au lieu de sauter "
-              "des images : le monde bouge au ralenti, mais l'image reste "
-              "fluide. Le cout depend surtout de la definition et de la "
-              "scene, donc un reglage qui tient partout en 1920x1080 peut "
-              "ralentir dans les scenes chargees en 2560x1440. Montez d'un "
-              "cran a la fois et gardez celui ou la vitesse du jeu vous "
-              "convient ; quelques ralentissements passagers sont un choix "
-              "raisonnable si vous preferez la fluidite. Passe le point ou la "
-              "machine sature, un cran de plus n'ajoute presque plus d'images "
-              "a l'ecran et ne fait plus que ralentir le jeu.",
-        "en": "If the machine cannot keep up, the game slows down rather "
-              "than dropping frames: the world moves in slow motion, but the "
-              "picture stays smooth. The cost depends mostly on the "
-              "resolution and on the scene, so a value which holds "
-              "everywhere at 1920x1080 may slow down in busy scenes at "
-              "2560x1440. Raise it one step at a time and keep the one whose "
-              "game speed suits you; putting up with the occasional slow "
-              "patch is a fair trade if you would rather have the "
-              "smoothness. Past the point where the machine saturates, one "
-              "more step adds almost no frames on screen and only slows the "
-              "game down."},
+        "fr": "Le jeu avance a 16 tours par seconde ; ce reglage dit combien "
+              "d'images sont dessinees entre deux tours — 1 en donne 16 par "
+              "seconde, 4 en donne 64. Si la machine ne suit pas, le jeu "
+              "ralentit au lieu de sauter des images : montez d'un cran a la "
+              "fois et gardez celui ou la vitesse vous convient.",
+        "en": "The game advances at 16 turns a second; this setting says how "
+              "many frames are drawn between two turns - 1 gives 16 a "
+              "second, 4 gives 64. If the machine cannot keep up, the game "
+              "slows down rather than dropping frames: raise it one step at "
+              "a time and keep the one whose speed suits you."},
 
     "shape_fits": {
         "fr": "Cette definition a la meme forme que votre ecran : avec "
@@ -1396,7 +1372,6 @@ class LauncherWindow(Gtk.ApplicationWindow):
             box.append(frow)
 
             box.append(self.small_note("frames_note"))
-            box.append(self.small_note("frames_warning"))
 
         box.append(Gtk.Separator())
         box.append(self.section_label(self.tr("sec_aspect")))

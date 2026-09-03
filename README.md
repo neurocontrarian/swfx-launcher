@@ -45,8 +45,9 @@ l'interface.
 - Résolution de la vue de mission, plein écran ou fenêtré
 - Liste des résolutions construite depuis `xrandr` : impossible de choisir un
   mode que votre écran n'expose pas
-- Préservation des proportions sur les écrans panoramiques, appliquée avant
-  le lancement et restaurée automatiquement à la fermeture du jeu
+- Préservation des proportions sur les écrans panoramiques, appliquée dès
+  que la case change et à chaque lancement, et laissée en place ensuite pour
+  que le jeu s'affiche pareil quelle que soit la façon dont on le démarre
 - Traitement des vidéos : agrandies à l'écran, ou dans un mode 4:3 dédié
 - Champ de vision sur une échelle de 1 à 10, écrite dans `rules.ini`
 - Affichage de la santé des cibles
@@ -78,7 +79,7 @@ installés automatiquement avec lui.
 
 #### Debian, Ubuntu, Linux Mint
 
-1. Téléchargez `swfx-launcher_0.6.0_all.deb` depuis la
+1. Téléchargez `swfx-launcher_0.6.1_all.deb` depuis la
    **[page des versions](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
 2. Double-cliquez sur le fichier téléchargé : l'installateur de paquets
    s'ouvre, il suffit de cliquer sur **Installer**.
@@ -89,7 +90,7 @@ ensuite dans le menu des applications, section Jeux.
 En terminal, si vous préférez :
 
 ```bash
-sudo apt install ~/Téléchargements/swfx-launcher_0.6.0_all.deb
+sudo apt install ~/Téléchargements/swfx-launcher_0.6.1_all.deb
 ```
 
 Un message commençant par `N: Download is performed unsandboxed as root…`
@@ -162,7 +163,7 @@ Terminal=false
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
 ./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.6.0_all.deb
+sudo apt install ./dist/swfx-launcher_0.6.1_all.deb
 ```
 
 La construction ne demande que `dpkg-deb` et `gzip`, présents partout sur
@@ -399,8 +400,9 @@ fail, and explains each choice inside the interface.
 
 - Mission view resolution, fullscreen or windowed
 - Resolution list built from `xrandr`, so an unsupported mode cannot be picked
-- Aspect ratio preservation on widescreen displays, applied before launch and
-  restored automatically when the game exits
+- Aspect ratio preservation on widescreen displays, applied as soon as the
+  box changes and at every launch, and left in place afterwards so that the
+  game looks the same however it is started
 - Video handling: enlarged to fit the screen, or in a dedicated 4:3 mode
 - Field of view on a 1 to 10 scale, written to `rules.ini`
 - Target health display
@@ -431,7 +433,7 @@ installed along with it.
 
 #### Debian, Ubuntu, Linux Mint
 
-1. Download `swfx-launcher_0.6.0_all.deb` from the
+1. Download `swfx-launcher_0.6.1_all.deb` from the
    **[releases page](https://github.com/neurocontrarian/swfx-launcher/releases/latest)**.
 2. Double-click the downloaded file: the package installer opens, and one
    click on **Install** is all it takes.
@@ -442,7 +444,7 @@ in the applications menu, under Games.
 From a terminal, if you prefer:
 
 ```bash
-sudo apt install ~/Downloads/swfx-launcher_0.6.0_all.deb
+sudo apt install ~/Downloads/swfx-launcher_0.6.1_all.deb
 ```
 
 A message starting with `N: Download is performed unsandboxed as root…` may
@@ -512,7 +514,7 @@ Terminal=false
 git clone https://github.com/neurocontrarian/swfx-launcher.git
 cd swfx-launcher
 ./build-deb.sh
-sudo apt install ./dist/swfx-launcher_0.6.0_all.deb
+sudo apt install ./dist/swfx-launcher_0.6.1_all.deb
 ```
 
 Building needs only `dpkg-deb` and `gzip`, both present everywhere on these

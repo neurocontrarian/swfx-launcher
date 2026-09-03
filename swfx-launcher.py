@@ -63,7 +63,7 @@ APP_ID = "org.swfans.SwfxLauncher"
 
 # Identity. VERSION is kept in step with packaging/control by set-version.sh;
 # do not edit it by hand.
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 DEVELOPER = "neurocontrarian"
 LAUNCHER_REPO = "https://github.com/neurocontrarian/swfx-launcher"
 GAME_REPO = "https://github.com/swfans/syndwarsfx"
@@ -248,21 +248,22 @@ STRINGS = {
         "fr": "Preserver les proportions (bandes noires)",
         "en": "Keep the aspect ratio (black bars)"},
     "aspect_on": {
-        "fr": "La sortie video sera reglee pour preserver les proportions "
-              "avant le lancement, puis remise dans son etat precedent a la "
-              "fermeture du jeu.",
-        "en": "The video output will be set to keep proportions before the "
-              "game starts, then restored to its previous state when the "
-              "game exits."},
+        "fr": "La sortie video est reglee pour preserver les proportions, "
+              "des que vous cochez la case et a chaque lancement. Le jeu "
+              "etant plus etroit que votre ecran, il reste des bandes noires "
+              "sur les cotes.",
+        "en": "The video output is set to keep proportions, as soon as you "
+              "tick the box and at every launch. Since the game is narrower "
+              "than your screen, black bars are left at the sides."},
     "aspect_off": {
-        "fr": "La sortie video sera reglee pour etaler l'image sur toute la "
-              "largeur avant le lancement, puis remise dans son etat "
-              "precedent a la fermeture du jeu. Sur un ecran panoramique, "
-              "cela deforme le texte et les menus.",
-        "en": "The video output will be set to stretch the image across the "
-              "full width before the game starts, then restored to its "
-              "previous state when the game exits. On a widescreen display "
-              "this distorts text and menus."},
+        "fr": "La sortie video est reglee pour etaler l'image sur toute la "
+              "largeur, des que vous decochez la case et a chaque lancement. "
+              "L'image occupe tout l'ecran ; sur un ecran panoramique, cela "
+              "elargit le texte et les menus.",
+        "en": "The video output is set to stretch the image across the full "
+              "width, as soon as you clear the box and at every launch. The "
+              "picture fills the screen; on a widescreen display this widens "
+              "text and menus."},
     "aspect_unavailable": {
         "fr": "Votre pilote graphique n'expose pas ce reglage : les "
               "proportions dependent alors du menu de votre moniteur.",
@@ -453,9 +454,12 @@ STRINGS = {
     "launch_failed": {
         "fr": "Echec du lancement : %s",
         "en": "Could not start the game: %s"},
-    "restored_screen": {
-        "fr": "Jeu ferme ; reglage d'ecran restaure.",
-        "en": "Game closed; screen setting restored."},
+    "aspect_applied_keep": {
+        "fr": "Proportions preservees : bandes noires sur les cotes.",
+        "en": "Proportions kept: black bars at the sides."},
+    "aspect_applied_stretch": {
+        "fr": "Image etiree sur toute la largeur de l'ecran.",
+        "en": "Image stretched across the full width of the screen."},
     "no_log": {
         "fr": "Aucun error.log dans %s",
         "en": "No error.log in %s"},
@@ -1352,7 +1356,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
 
         self.aspect_check = Gtk.CheckButton(label=self.tr("keep_aspect"))
         self.aspect_check.set_sensitive(self.scaling_available)
-        self.aspect_check.connect("toggled", lambda *_: self.on_changed())
+        self.aspect_check.connect("toggled", self.on_aspect_toggled)
         box.append(self.aspect_check)
 
         self.aspect_note = self.dim_label(28)
@@ -1850,52 +1854,50 @@ class LauncherWindow(Gtk.ApplicationWindow):
             self.set_status(self.tr("exe_missing") % self.game_dir)
             return
 
-        previous_scaling = None
         if self.scaling_available:
             # Both states have to be set, not just the one that adds bars: the
             # output may already be on either value, in which case leaving it
             # alone would make the checkbox look like it does nothing.
+            #
+            # The value is left in place once the game exits. Putting the
+            # previous one back sounds tidier, but the property only has an
+            # effect while the output runs a mode smaller than the panel -
+            # which is the game, never the desktop - so restoring it gains
+            # nothing, and it cost the one thing that matters: a game started
+            # from a terminal, or from a desktop shortcut, would come up with
+            # whatever the desktop had been left on rather than what was
+            # chosen here.
             keep = self.aspect_check.get_active()
             wanted = SCALING_ASPECT if keep else SCALING_STRETCH
-            previous_scaling = current_scaling_mode(self.output)
-            if previous_scaling == wanted:
-                previous_scaling = None  # nothing to put back afterwards
-                self.set_status(self.tr("launched_aspect" if keep
-                                        else "launched_stretch"))
-            elif set_scaling_mode(self.output, wanted):
+            if (current_scaling_mode(self.output) == wanted
+                    or set_scaling_mode(self.output, wanted)):
                 self.set_status(self.tr("launched_aspect" if keep
                                         else "launched_stretch"))
             else:
-                previous_scaling = None
                 self.set_status(self.tr("aspect_refused"))
         else:
             self.set_status(self.tr("launched"))
 
         try:
-            process = subprocess.Popen(cmd, cwd=self.game_dir)
+            subprocess.Popen(cmd, cwd=self.game_dir)
         except Exception as exc:
-            if previous_scaling:
-                set_scaling_mode(self.output, previous_scaling)
             self.set_status(self.tr("launch_failed") % exc)
             return
 
-        if previous_scaling:
-            self.watch_process(process, previous_scaling)
-
-    def watch_process(self, process, previous_scaling):
-        """Waits for the game in a background thread, so the screen setting
-        goes back to what it was without freezing the interface."""
-        output = self.output
-
-        def waiter():
-            try:
-                process.wait()
-            except Exception:
-                pass
-            set_scaling_mode(output, previous_scaling)
-            GLib.idle_add(self.set_status, self.tr("restored_screen"))
-
-        threading.Thread(target=waiter, daemon=True).start()
+    def on_aspect_toggled(self, _btn):
+        """Applies the choice to the output straight away, so that the effect
+        is seen without launching anything, and so that the game fills the
+        screen the same way however it is started."""
+        self.on_changed()
+        if not self.scaling_available:
+            return
+        keep = self.aspect_check.get_active()
+        wanted = SCALING_ASPECT if keep else SCALING_STRETCH
+        if set_scaling_mode(self.output, wanted):
+            self.set_status(self.tr("aspect_applied_keep" if keep
+                                    else "aspect_applied_stretch"))
+        else:
+            self.set_status(self.tr("aspect_refused"))
 
     def on_show_log(self, _btn):
         path = os.path.join(self.game_dir, "error.log")

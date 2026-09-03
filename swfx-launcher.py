@@ -63,7 +63,7 @@ APP_ID = "org.swfans.SwfxLauncher"
 
 # Identity. VERSION is kept in step with packaging/control by set-version.sh;
 # do not edit it by hand.
-VERSION = "0.6.1"
+VERSION = "0.6.2"
 DEVELOPER = "neurocontrarian"
 LAUNCHER_REPO = "https://github.com/neurocontrarian/swfx-launcher"
 GAME_REPO = "https://github.com/swfans/syndwarsfx"
@@ -242,6 +242,26 @@ STRINGS = {
               "smoothness. Past the point where the machine saturates, one "
               "more step adds almost no frames on screen and only slows the "
               "game down."},
+
+    "shape_fits": {
+        "fr": "Cette definition a la meme forme que votre ecran : avec "
+              "« Preserver les proportions », l'image le remplit sans bandes "
+              "noires et sans deformation.",
+        "en": "This resolution has the same shape as your screen: with "
+              "\"Keep the aspect ratio\", the picture fills it with no black "
+              "bars and no distortion."},
+    "shape_bars": {
+        "fr": "Cette definition est plus %s que votre ecran. Avec "
+              "« Preserver les proportions » il restera %d px de bandes "
+              "noires de chaque cote ; sans, l'image sera etiree. %dx%d est "
+              "la definition proposee dont la forme colle le mieux a votre "
+              "ecran.",
+        "en": "This resolution is %s than your screen. With \"Keep the aspect "
+              "ratio\" it leaves %d px of black bars on each side; without, "
+              "the picture is stretched. %dx%d is the offered resolution "
+              "whose shape fits your screen best."},
+    "shape_narrow": {"fr": "etroite", "en": "narrower"},
+    "shape_wide": {"fr": "large", "en": "wider"},
 
     "sec_aspect": {"fr": "Proportions a l'ecran", "en": "On-screen aspect"},
     "keep_aspect": {
@@ -676,6 +696,30 @@ def game_modes(all_sizes):
     if not usable:
         return list(FALLBACK_MODES)
     return [size_str(w, h) for w, h in usable]
+
+
+def best_shape_match(all_sizes, screen):
+    """The game mode whose shape is closest to the screen's. The game cannot
+    go wider than 2560, so on a widescreen panel the only way to fill it
+    without stretching is to pick a mode of the same shape and let the output
+    scale it up."""
+    if not screen or screen[1] == 0:
+        return None
+    wanted = screen[0] / screen[1]
+    usable = [(w, h) for (w, h) in all_sizes
+              if h <= MAX_GAME_HEIGHT and w <= MAX_GAME_WIDTH and h > 0]
+    if not usable:
+        return None
+    return min(usable, key=lambda wh: abs(wh[0] / wh[1] - wanted))
+
+
+def side_bars(size, screen):
+    """Width of the black bar left on each side when the mode is scaled to
+    the screen keeping its proportions. Zero when the shapes agree."""
+    if not screen or size[1] == 0 or screen[1] == 0:
+        return 0
+    scale = min(screen[0] / size[0], screen[1] / size[1])
+    return max(0, int((screen[0] - size[0] * scale) / 2))
 
 
 def four_three_sizes(all_sizes, max_height):
@@ -1330,6 +1374,9 @@ class LauncherWindow(Gtk.ApplicationWindow):
         self.res_note = self.dim_label()
         box.append(self.res_note)
 
+        self.shape_note = self.dim_label()
+        box.append(self.shape_note)
+
         box.append(self.small_note("res_limit",
                                    args=(MAX_GAME_WIDTH, MAX_GAME_HEIGHT,
                                          MAX_GAME_WIDTH, MAX_GAME_HEIGHT)))
@@ -1696,6 +1743,8 @@ class LauncherWindow(Gtk.ApplicationWindow):
         else:
             self.res_note.set_text(self.tr("res_note_fullscreen"))
 
+        self.update_shape_note()
+
         if not self.scaling_available:
             self.aspect_note.set_text(self.tr("aspect_unavailable"))
         elif self.aspect_check.get_active():
@@ -1725,6 +1774,32 @@ class LauncherWindow(Gtk.ApplicationWindow):
             suffix = ""
         self.zoom_note.set_text(
             self.tr("zoom_position") % (step, lo, hi, suffix))
+
+    def update_shape_note(self):
+        """Says whether the chosen resolution has the shape of the screen, and
+        which offered one comes closest. The game is capped at 2560 pixels of
+        width, so on a panel wider than that the shape of the mode is the only
+        thing which decides between filling the screen and black bars."""
+        size = self.selected_size()
+        screen = detect_monitor()
+        if size is None or screen is None or self.windowed_check.get_active():
+            self.shape_note.set_text("")
+            return
+        bars = side_bars(size, screen)
+        # A couple of dozen pixels on a screen thousands wide is not a bar
+        # anyone sees; 2560x1080 on a 3440x1440 panel leaves thirteen.
+        if bars <= screen[0] // 100:
+            self.shape_note.set_text(self.tr("shape_fits"))
+            return
+        best = best_shape_match(self.all_sizes, screen)
+        if best is None or tuple(best) == tuple(size):
+            self.shape_note.set_text("")
+            return
+        shape = self.tr("shape_narrow"
+                        if size[0] / size[1] < screen[0] / screen[1]
+                        else "shape_wide")
+        self.shape_note.set_text(
+            self.tr("shape_bars") % (shape, bars, best[0], best[1]))
 
     def update_monitor_info(self):
         geo = detect_monitor()

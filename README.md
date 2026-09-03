@@ -50,9 +50,9 @@ l'interface.
 - Traitement des vidéos : agrandies à l'écran, ou dans un mode 4:3 dédié
 - Champ de vision sur une échelle de 1 à 10, écrite dans `rules.ini`
 - Affichage de la santé des cibles
-- Images par seconde, uniquement si le binaire du jeu comprend la clé
-  `FramesPerTurn` : ce n'est pas encore le cas des versions publiées du
-  portage, la section reste donc invisible
+- Images par tour de jeu, de 1 à 4, uniquement si le binaire du jeu
+  comprend la clé `FramesPerTurn` : ce n'est pas encore le cas des versions
+  publiées du portage, la section reste donc invisible
 - Taille de la pluie, des flocons et des étoiles, uniquement si le binaire
   du jeu comprend les clés `[atmospheric]` : même réserve que ci-dessus
 - Saut de l'intro, lancement direct d'une mission avec le nom des campagnes
@@ -308,15 +308,21 @@ bords, faute de place dans les tableaux de rendu — voir le ticket
 [#255](https://github.com/swfans/syndwarsfx/issues/255) — et l'horizon peut se
 replier sur lui-même. Ce ne sont pas des bugs du lanceur.
 
-#### 10. Le nombre d'images par seconde n'est pas encore réglable
+#### 10. La fluidité n'est pas encore réglable
 
 Le jeu avance à 16 tours par seconde et dessine une image par tour. Le
-lanceur sait écrire `FramesPerTurn`, qui ajoute des images intermédiaires,
-mais la section n'apparaît que si le binaire du jeu comprend cette clé — et
-les versions publiées du portage ne la comprennent pas. Découpler la vitesse
-du jeu du rendu fait l'objet du ticket
+lanceur sait écrire `FramesPerTurn`, qui dessine plusieurs images entre deux
+tours, mais la section n'apparaît que si le binaire du jeu comprend cette
+clé — et les versions publiées du portage ne la comprennent pas. Découpler la
+vitesse du jeu du rendu fait l'objet du ticket
 [#24](https://github.com/swfans/syndwarsfx/issues/24), ouvert et non
 implémenté. Le réglage attend donc ce travail en amont.
+
+Le réglage se donne en images par tour plutôt qu'en images par seconde,
+parce que c'est ce que la clé fait réellement, et parce que le nombre
+d'images par seconde annoncé n'est atteint que tant que la machine suit :
+au-delà, le jeu ralentit au lieu de sauter des images. Le lanceur le dit dans
+la section.
 
 #### 11. Les effets atmosphériques sont dimensionnés en pixels d'écran
 
@@ -398,7 +404,7 @@ fail, and explains each choice inside the interface.
 - Video handling: enlarged to fit the screen, or in a dedicated 4:3 mode
 - Field of view on a 1 to 10 scale, written to `rules.ini`
 - Target health display
-- Frames per second, only if the game binary understands the
+- Frames per game turn, 1 to 4, only if the game binary understands the
   `FramesPerTurn` key: released builds of the port do not yet, so the
   section stays hidden
 - Size of the rain, the snow and the stars, only if the game binary
@@ -649,15 +655,20 @@ lack of room in the rendering tables — see ticket
 [#255](https://github.com/swfans/syndwarsfx/issues/255) — and the horizon
 can fold over itself. These are not bugs in the launcher.
 
-#### 10. Frame rate is not adjustable yet
+#### 10. Smoothness is not adjustable yet
 
 The game advances at 16 turns a second and draws one frame per turn. The
-launcher can write `FramesPerTurn`, which adds frames in between, but the
-section only appears if the game binary understands that key — and released
-builds of the port do not. Decoupling game speed from rendering is the
-subject of ticket
+launcher can write `FramesPerTurn`, which draws several frames between two
+turns, but the section only appears if the game binary understands that
+key — and released builds of the port do not. Decoupling game speed from
+rendering is the subject of ticket
 [#24](https://github.com/swfans/syndwarsfx/issues/24), open and not
 implemented. The setting is waiting on that upstream work.
+
+The setting is given as frames per turn rather than as a frame rate, because
+that is what the key does, and because the frame rate it implies is only
+reached while the machine keeps up: past that the game slows down instead of
+dropping frames. The launcher says so in the section.
 
 #### 11. Atmospheric effects are sized in screen pixels
 

@@ -125,11 +125,15 @@ ZOOM_DEFAULT_STEP = 9
 ADVANCED_KEYS = ["-L", "-w"]
 
 # Frames drawn per game turn. The simulation always advances 16 turns a
-# second, so the setting is really a frame rate: 1 keeps the original 16
-# images a second, 4 gives 64. Only a game built with FramesPerTurn support
-# understands the key, hence the marker used to detect it.
-GAME_TURNS_PER_SECOND = 16
-FRAMES_PER_TURN_MAX = 8
+# second, so one frame per turn is the original 16 images a second and four
+# is 64. The setting is offered as the frame count rather than as a frame
+# rate, because that is what it does and because the rate is only reached
+# while the machine keeps up: past that the game slows down instead. Four is
+# the top of the range offered - the game accepts up to eight, but no machine
+# tried comes close, and a value which cannot be drawn is only a slower game.
+# Only a game built with FramesPerTurn support understands the key, hence the
+# marker used to detect it.
+FRAMES_PER_TURN_MAX = 4
 FRAMES_SUPPORT_MARKER = b"FramesPerTurn"
 
 # Size limits for the atmospheric effects, in the [atmospheric] section of
@@ -202,24 +206,37 @@ STRINGS = {
               "%dx%d works."},
 
     "sec_frames": {"fr": "Fluidite", "en": "Smoothness"},
-    "frames_label": {"fr": "Images par seconde", "en": "Frames per second"},
+    "frames_label": {"fr": "Images par tour de jeu", "en": "Frames per game turn"},
     "frames_note": {
-        "fr": "Le jeu avance toujours a 16 tours par seconde ; ce reglage "
-              "dessine des images intermediaires entre eux. Plus il est "
-              "eleve, plus le defilement est fluide, et plus le processeur "
-              "travaille.",
-        "en": "The game still advances at 16 turns a second; this setting "
-              "draws extra frames in between. The higher it is, the smoother "
+        "fr": "Le jeu avance toujours a 16 tours par seconde, quoi qu'il "
+              "arrive. Ce reglage dit combien d'images sont dessinees entre "
+              "deux tours : 1 donne les 16 images par seconde d'origine, 2 en "
+              "donne 32, 3 en donne 48 et 4 en donne 64. Plus il est eleve, "
+              "plus le defilement est fluide et plus la carte graphique et le "
+              "processeur travaillent.",
+        "en": "The game always advances at 16 turns a second, whatever "
+              "happens. This setting says how many frames are drawn between "
+              "two turns: 1 gives the original 16 frames a second, 2 gives "
+              "32, 3 gives 48 and 4 gives 64. The higher it is, the smoother "
               "the scrolling, and the harder the processor works."},
     "frames_warning": {
         "fr": "Si la machine ne suit pas, le jeu ralentit au lieu de sauter "
-              "des images. Une valeur plus basse, ou une definition plus "
-              "petite, corrige cela. Montez d'un cran a la fois tant que la "
-              "vitesse du jeu reste normale.",
+              "des images : le monde bouge au ralenti, mais l'image reste "
+              "fluide. Le cout depend surtout de la definition et de la "
+              "scene, donc un reglage qui tient partout en 1920x1080 peut "
+              "ralentir dans les scenes chargees en 2560x1440. Montez d'un "
+              "cran a la fois et gardez celui ou la vitesse du jeu vous "
+              "convient ; quelques ralentissements passagers sont un choix "
+              "raisonnable si vous preferez la fluidite.",
         "en": "If the machine cannot keep up, the game slows down rather "
-              "than dropping frames. A lower value, or a smaller resolution, "
-              "fixes that. Raise it one step at a time while the game speed "
-              "still feels normal."},
+              "than dropping frames: the world moves in slow motion, but the "
+              "picture stays smooth. The cost depends mostly on the "
+              "resolution and on the scene, so a value which holds "
+              "everywhere at 1920x1080 may slow down in busy scenes at "
+              "2560x1440. Raise it one step at a time and keep the one whose "
+              "game speed suits you; putting up with the occasional slow "
+              "patch is a fair trade if you would rather have the "
+              "smoothness."},
 
     "sec_aspect": {"fr": "Proportions a l'ecran", "en": "On-screen aspect"},
     "keep_aspect": {
@@ -1316,8 +1333,7 @@ class LauncherWindow(Gtk.ApplicationWindow):
             frow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
             frow.append(Gtk.Label(label=self.tr("frames_label"), xalign=0))
             self.frames_drop = Gtk.DropDown.new_from_strings(
-                [str(GAME_TURNS_PER_SECOND * n)
-                 for n in range(1, FRAMES_PER_TURN_MAX + 1)])
+                [str(n) for n in range(1, FRAMES_PER_TURN_MAX + 1)])
             self.frames_drop.connect("notify::selected",
                                      lambda *_: self.on_changed())
             frow.append(self.frames_drop)

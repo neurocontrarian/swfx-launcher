@@ -128,12 +128,12 @@ ADVANCED_KEYS = ["-L", "-w"]
 # second, so one frame per turn is the original 16 images a second and four
 # is 64. The setting is offered as the frame count rather than as a frame
 # rate, because that is what it does and because the rate is only reached
-# while the machine keeps up: past that the game slows down instead. Four is
-# the top of the range offered - the game accepts up to eight, but no machine
-# tried comes close, and a value which cannot be drawn is only a slower game.
-# Only a game built with FramesPerTurn support understands the key, hence the
-# marker used to detect it.
-FRAMES_PER_TURN_MAX = 4
+# while the machine keeps up: past that the game slows down instead. The game
+# accepts one to ten, ten being 160 frames a second, which is a bound against
+# a mistyped value rather than anything a machine reaches. Only a game built
+# with FramesPerTurn support understands the key, hence the marker used to
+# detect it.
+FRAMES_PER_TURN_MAX = 10
 FRAMES_SUPPORT_MARKER = b"FramesPerTurn"
 
 # Size limits for the atmospheric effects, in the [atmospheric] section of
@@ -210,15 +210,16 @@ STRINGS = {
     "frames_note": {
         "fr": "Le jeu avance toujours a 16 tours par seconde, quoi qu'il "
               "arrive. Ce reglage dit combien d'images sont dessinees entre "
-              "deux tours : 1 donne les 16 images par seconde d'origine, 2 en "
-              "donne 32, 3 en donne 48 et 4 en donne 64. Plus il est eleve, "
-              "plus le defilement est fluide et plus la carte graphique et le "
-              "processeur travaillent.",
+              "deux tours : 1 donne les 16 images par seconde d'origine, et "
+              "chaque cran en ajoute autant — 2 en donne 32, 4 en donne 64, "
+              "10 en donne 160. Plus il est eleve, plus le defilement est "
+              "fluide et plus le processeur travaille.",
         "en": "The game always advances at 16 turns a second, whatever "
               "happens. This setting says how many frames are drawn between "
-              "two turns: 1 gives the original 16 frames a second, 2 gives "
-              "32, 3 gives 48 and 4 gives 64. The higher it is, the smoother "
-              "the scrolling, and the harder the processor works."},
+              "two turns: 1 gives the original 16 frames a second, and each "
+              "step adds as many again - 2 gives 32, 4 gives 64, 10 gives "
+              "160. The higher it is, the smoother the scrolling, and the "
+              "harder the processor works."},
     "frames_warning": {
         "fr": "Si la machine ne suit pas, le jeu ralentit au lieu de sauter "
               "des images : le monde bouge au ralenti, mais l'image reste "
@@ -227,7 +228,9 @@ STRINGS = {
               "ralentir dans les scenes chargees en 2560x1440. Montez d'un "
               "cran a la fois et gardez celui ou la vitesse du jeu vous "
               "convient ; quelques ralentissements passagers sont un choix "
-              "raisonnable si vous preferez la fluidite.",
+              "raisonnable si vous preferez la fluidite. Passe le point ou la "
+              "machine sature, un cran de plus n'ajoute presque plus d'images "
+              "a l'ecran et ne fait plus que ralentir le jeu.",
         "en": "If the machine cannot keep up, the game slows down rather "
               "than dropping frames: the world moves in slow motion, but the "
               "picture stays smooth. The cost depends mostly on the "
@@ -236,7 +239,9 @@ STRINGS = {
               "2560x1440. Raise it one step at a time and keep the one whose "
               "game speed suits you; putting up with the occasional slow "
               "patch is a fair trade if you would rather have the "
-              "smoothness."},
+              "smoothness. Past the point where the machine saturates, one "
+              "more step adds almost no frames on screen and only slows the "
+              "game down."},
 
     "sec_aspect": {"fr": "Proportions a l'ecran", "en": "On-screen aspect"},
     "keep_aspect": {

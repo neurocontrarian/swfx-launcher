@@ -50,7 +50,7 @@ l'interface.
 - Traitement des vidéos : agrandies à l'écran, ou dans un mode 4:3 dédié
 - Champ de vision sur une échelle de 1 à 10, écrite dans `rules.ini`
 - Affichage de la santé des cibles
-- Images par tour de jeu, de 1 à 4, uniquement si le binaire du jeu
+- Images par tour de jeu, de 1 à 10, uniquement si le binaire du jeu
   comprend la clé `FramesPerTurn` : ce n'est pas encore le cas des versions
   publiées du portage, la section reste donc invisible
 - Taille de la pluie, des flocons et des étoiles, uniquement si le binaire
@@ -404,7 +404,7 @@ fail, and explains each choice inside the interface.
 - Video handling: enlarged to fit the screen, or in a dedicated 4:3 mode
 - Field of view on a 1 to 10 scale, written to `rules.ini`
 - Target health display
-- Frames per game turn, 1 to 4, only if the game binary understands the
+- Frames per game turn, 1 to 10, only if the game binary understands the
   `FramesPerTurn` key: released builds of the port do not yet, so the
   section stays hidden
 - Size of the rain, the snow and the stars, only if the game binary
